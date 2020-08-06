@@ -54,6 +54,7 @@ void inputVal(size_t);
 void output();
 
 string inputCurrentVal(string*, string*);
+string createPatternForMultipleNumbers(size_t, size_t);
 
 int main()
 {
@@ -130,17 +131,38 @@ void navigation(size_t dataType) {
 }
 
 string inputCurrentVal(string* checkVal, string* titleVal) {
-	string temp;
+	string str;
 	cmatch result;
 	regex valueCheck(*checkVal);
 
 	cin.ignore(cin.rdbuf()->in_avail());
 	do {
 		cout << *titleVal;
-		getline(cin, temp);
-	} while (!regex_match(temp.c_str(), result, valueCheck));
+		getline(cin, str);
+	} while (!regex_match(str.c_str(), result, valueCheck));
 
-	return temp;
+	return str;
+}
+
+string createPatternForMultipleNumbers(size_t lenght, size_t maxNumber) {
+	string str;
+	str.clear();
+	for (size_t i = 0; i < lenght; i++) {
+		for (size_t j = i; j < lenght; j++)
+			if (maxNumber >= 10) {
+				str.append("(");
+				for (size_t n = maxNumber / 10; n > 0; n--)
+					n != maxNumber / 10
+					? str.append(to_string(n) + "[0-9]|")
+					: str.append(to_string(n) + "[0-" + to_string(maxNumber % 10) + "]|");
+				str.append("[1-9]),");
+			}
+			else str.append("([1-" + to_string(maxNumber % 10) + "]),");
+		str.erase(str.end() - 1);
+		str.append("|");
+	}
+	str.erase(str.end() - 1);
+	return str;
 }
 
 void inputVal(size_t dataType) {
@@ -177,6 +199,9 @@ void inputVal(size_t dataType) {
 	fclose(dataFile);
 
 	do {
+		size_t staffLenght = 0;
+		size_t servLenght = 0;
+
 		fopen_s(&dataFile, fileName.c_str(), "a+b");
 
 		cout << "\n\tВведите данные " << entryNumb + 1 
@@ -210,6 +235,31 @@ void inputVal(size_t dataType) {
 			order.dateOfOrder[1] = stoi(temp.substr(3, 2));
 			order.dateOfOrder[2] = stoi(temp.substr(6, 4));
 
+			// Services Numbers
+			FILE* servFile;
+
+			fopen_s(&servFile, SERVICES, "rb");
+			while (fread(&serv, sizeof(service), 1, servFile))
+				servLenght++;
+			fclose(servFile);
+
+			fopen_s(&servFile, SERVICES, "rb");
+			while (fread(&serv, sizeof(service), 1, servFile))
+				cout << "\n\t" << serv.ID + 1 << ". " << serv.title;
+			fclose(servFile);
+
+			titleVal = "\n\n\tПеречислите через запятую номера услуг: ";
+			checkVal = createPatternForMultipleNumbers(5, servLenght);
+			temp = inputCurrentVal(&checkVal, &titleVal);
+
+			for (size_t i = 0, j = 0, n = 0; i <= temp.size(); i++)
+				if (temp.substr(i, 1) == "," || i == temp.size()) {
+					order.servNumbers[j] = stoi(temp.substr(i - n, n)) - 1;
+					n = 0;
+					j++;
+				}
+				else n++;
+
 			fwrite(&order, sizeof(orders), 1, dataFile);
 			break;
 		case 2:
@@ -237,20 +287,16 @@ void inputVal(size_t dataType) {
 			}
 
 			titleVal = "\tПеречислите через запятую номера специализаций: ";
-			checkVal.clear();
-
-			for (size_t i = 0; i < POS_KOL; i++) {
-				for (size_t j = i; j < POS_KOL; j++) {
-					checkVal.append("([1-" + to_string(POS_KOL) + "]),");
-				}
-				checkVal.erase(checkVal.end() - 1);
-				checkVal.append("|");
-			}
-			checkVal.erase(checkVal.end() - 1);
+			checkVal = createPatternForMultipleNumbers(POS_KOL, POS_KOL);
 			temp = inputCurrentVal(&checkVal, &titleVal);
 
-			for (size_t i = 0, j = 0; j < temp.size(); i++, j += 2)
-				empl.position[i] = stoi(temp.substr(j, 1));
+			for (size_t i = 0, j = 0, n = 0; i <= temp.size(); i++)
+				if (temp.substr(i, 1) == "," || i == temp.size()) {
+					empl.position[j] = stoi(temp.substr(i - n, n)) - 1;
+					n = 0;
+					j++;
+				}
+				else n++;
 
 			fwrite(&empl, sizeof(employee), 1, dataFile);
 			break;
@@ -273,22 +319,21 @@ void inputVal(size_t dataType) {
 			strcpy_s(serv.title, inputCurrentVal(&checkVal, &titleVal).c_str());
 
 			// Employee
-			FILE* staff_file;
-			size_t staffLenght = 0;
+			FILE* staffFile;
 
-			fopen_s(&staff_file, STAFF, "rb");
-			while (fread(&empl, sizeof(employee), 1, staff_file)) staffLenght++;
-			fclose(staff_file);
+			fopen_s(&staffFile, STAFF, "rb");
+			while (fread(&empl, sizeof(employee), 1, staffFile)) staffLenght++;
+			fclose(staffFile);
 
 			checkVal.clear();
-			fopen_s(&staff_file, STAFF, "rb");
-			while (fread(&empl, sizeof(employee), 1, staff_file))
+			fopen_s(&staffFile, STAFF, "rb");
+			while (fread(&empl, sizeof(employee), 1, staffFile))
 				for (size_t i = 0; i < staffLenght; i++)
 					if (empl.position[i] == serv.category) {
 						checkVal.append("|(" + to_string(empl.ID) + ")");
 						cout << "\n\t" << empl.ID << ". " << empl.fullName;
 					}
-			fclose(staff_file);
+			fclose(staffFile);
 			checkVal.erase(checkVal.begin());
 
 			titleVal = "\n\tВыберите специалиста: ";
