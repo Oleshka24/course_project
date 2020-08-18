@@ -2,7 +2,6 @@
 #include <iostream>
 #include <iomanip>
 #include <time.h>
-#include <vector>
 #include <string>
 #include <regex>
 
@@ -65,13 +64,19 @@ FILE* staffFile;
 string createPatternForMultipleNumbers(size_t, size_t, size_t, bool);
 string inputCurrentVal(string*, string*);
 
+orders orderInputLayout(size_t);
+employee emplInputLayout(size_t);
+service servInputLayout(size_t);
+
 void outputTableLine(size_t, table*, size_t);
 void outputVerticalLine(size_t);
 void outputTableHeaderRow(table*, size_t);
 
 void navigation(size_t);
 void inputVal(size_t);
-void output(size_t);
+void output(size_t, size_t);
+
+void editAndRemoveVal(size_t, size_t);
 
 int main()
 {
@@ -124,10 +129,11 @@ void navigation(size_t dataType) {
 			<< "\n\t3 - Редактировать запись."
 			<< "\n\t4 - Удалить запись."
 			<< "\n\t5 - Сортировать записи."
+			<< "\n\t6 - Найти запись."
 			<< "\n\t0 - Вернуться в главное меню.";
 
 		string titleVal = "\n\tВыберите пункт меню: ";
-		string checkVal = createPatternForMultipleNumbers(1, 0, 5, true);
+		string checkVal = createPatternForMultipleNumbers(1, 0, 6, true);
 
 		navPos = stoi(inputCurrentVal(&checkVal, &titleVal));
 
@@ -141,8 +147,16 @@ void navigation(size_t dataType) {
 
 		case 2:
 			break;
+
+		case 3:
+			editAndRemoveVal(dataType, navPos);
+			break;
+
+		case 4:
+			editAndRemoveVal(dataType, navPos);
+			break;
 		}
-		output(dataType);
+		output(dataType, 0);
 	} while (true);
 	return;
 }
@@ -186,8 +200,173 @@ string inputCurrentVal(string* checkVal, string* titleVal) {
 	return str;
 }
 
-void inputVal(size_t dataType) {
+orders orderInputLayout(size_t position) {
+	orders order;
+	service serv;
 
+	string str;
+	string titleVal;
+	string checkVal;
+
+	size_t itemsLenght = 0;
+
+	// ID
+	order.ID = position;
+
+	// Full Name
+	titleVal = "\tФИО заказчика по шаблону \"Иванов И.И.\": ";
+	checkVal = "([А-Я]{1})([а-я]+?) ([А-Я]{1})\\.([А-Я]{1})\\.";
+	strcpy_s(order.fullName, inputCurrentVal(&checkVal, &titleVal).c_str());
+
+	// Phone Number
+	titleVal = "\tНомер телефона заказчика: 380";
+	checkVal = "([0-9]{" + to_string(PHONE_NUMB_LENGHT) + "})";
+	str = inputCurrentVal(&checkVal, &titleVal);
+
+	for (size_t i = 0; i < str.size(); i++)
+		order.phoneNumb[i] = stoi(str.substr(i, 1));
+
+	// Date of order
+	titleVal = "\tВведите дату заказа по шаблону (дд/мм/гггг): ";
+	checkVal = "([0-2]{1}[1-9]{1}|3[0-1]{1})/(0[1-9]{1}|1[0-2]{1})/20([0-2]{1}[0-9]{1})";
+	str = inputCurrentVal(&checkVal, &titleVal);
+
+	order.dateOfOrder[0] = stoi(str.substr(0, 2));
+	order.dateOfOrder[1] = stoi(str.substr(3, 2));
+	order.dateOfOrder[2] = stoi(str.substr(6, 4));
+
+	// Services Numbers
+	output(3, 0);
+
+	fopen_s(&servFile, SERVICES, "rb");
+	while (fread(&serv, sizeof(service), 1, servFile))
+		itemsLenght++;
+	fclose(servFile);
+
+	titleVal = "\n\n\tПеречислите через запятую номера услуг (не более " + to_string(ORDER_SERV_LENGHT) + "): ";
+	checkVal = createPatternForMultipleNumbers(5, 1, itemsLenght, false);
+	str = inputCurrentVal(&checkVal, &titleVal);
+	if (true) {
+		size_t j = 0;
+		for (size_t i = 0, n = 0; i <= str.size(); i++)
+			if (str.substr(i, 1) == "," || i == str.size()) {
+				order.servNumbers[j] = stoi(str.substr(i - n, n));
+				n = 0;
+				j++;
+			}
+			else n++;
+
+		for (j; j < ORDER_SERV_LENGHT; j++) order.servNumbers[j] = 0;
+	}
+
+	return order;
+}
+
+employee emplInputLayout(size_t position) {
+	employee empl;
+
+	string str;
+	string titleVal;
+	string checkVal;
+
+	// ID
+	empl.ID = position;
+
+	// Full Name
+	titleVal = "\tФИО сотрудника по шаблону \"Иванов И.И.\": ";
+	checkVal = "([А-Я]{1})([а-я]+?) ([А-Я]{1})\\.([А-Я]{1})\\.";
+	strcpy_s(empl.fullName, inputCurrentVal(&checkVal, &titleVal).c_str());
+
+	// Phone Number
+	titleVal = "\tНомер телефона сотрудника: 380";
+	checkVal = "([0-9]{" + to_string(PHONE_NUMB_LENGHT) + "})";
+	str = inputCurrentVal(&checkVal, &titleVal);
+
+	for (size_t i = 0; i < str.size(); i++)
+		empl.phoneNumb[i] = stoi(str.substr(i, 1));
+
+	// Positions
+	cout << "\n\tСпециализации:\n";
+	for (size_t i = 0; i < POS_KOL; i++) {
+		empl.position[i] = 0;
+		cout << '\t' << pos[i].ID << ". " << pos[i].occupation << '\n';
+	}
+
+	titleVal = "\tПеречислите через запятую номера специализаций: ";
+	checkVal = createPatternForMultipleNumbers(POS_KOL, 1, POS_KOL, false);
+	str = inputCurrentVal(&checkVal, &titleVal);
+
+	for (size_t i = 0, j = 0, n = 0; i <= str.size(); i++)
+		if (str.substr(i, 1) == "," || i == str.size()) {
+			empl.position[j] = stoi(str.substr(i - n, n));
+			n = 0;
+			j++;
+		}
+		else n++;
+
+	return empl;
+}
+
+service servInputLayout(size_t position) {
+	service serv;
+	employee empl;
+
+	string str;
+	string titleVal;
+	string checkVal;
+
+	size_t itemsLenght = 0;
+
+	// ID
+	serv.ID = position;
+
+	// Category
+	cout << "\n\tКатегории:\n";
+	for (size_t i = 0; i < POS_KOL; i++)
+		cout << '\t' << pos[i].ID << ". " << pos[i].occupation << '\n';
+
+	titleVal = "\tВыберите категорию: ";
+	checkVal = createPatternForMultipleNumbers(1, 1, POS_KOL, true);;
+	serv.category = stoi(inputCurrentVal(&checkVal, &titleVal));
+
+	// Title
+	titleVal = "\tНазвание услуги: ";
+	checkVal = "(.+?)";
+	strcpy_s(serv.title, inputCurrentVal(&checkVal, &titleVal).c_str());
+
+	// Employee
+	fopen_s(&staffFile, STAFF, "rb");
+	while (fread(&empl, sizeof(employee), 1, staffFile)) itemsLenght++;
+	fclose(staffFile);
+
+	checkVal.clear();
+	fopen_s(&staffFile, STAFF, "rb");
+	while (fread(&empl, sizeof(employee), 1, staffFile))
+		for (size_t i = 0; i < itemsLenght; i++)
+			if (empl.position[i] == serv.category) {
+				checkVal.append("|(" + to_string(empl.ID) + ")");
+				cout << "\n\t" << empl.ID << ". " << empl.fullName;
+			}
+	fclose(staffFile);
+	checkVal.erase(checkVal.begin());
+
+	titleVal = "\n\tВыберите специалиста: ";
+	serv.employee = stoi(inputCurrentVal(&checkVal, &titleVal));
+
+	// Price
+	titleVal = "\tСтоимость услуги (в $): ";
+	checkVal = "([0-9]+?)";
+	serv.price = stoi(inputCurrentVal(&checkVal, &titleVal));
+
+	// Term
+	titleVal = "\tСрок, отведённый на выполнение задачи (в днях): ";
+	checkVal = "([0-9]+?)";
+	serv.term = stoi(inputCurrentVal(&checkVal, &titleVal));
+
+	return serv;
+}
+
+void inputVal(size_t dataType) {
 	orders order;
 	employee empl;
 	service serv;
@@ -201,22 +380,12 @@ void inputVal(size_t dataType) {
 		case 3: fileName = SERVICES; break;
 	}
 
-	string str;
-	string titleVal;
-	string checkVal;
-
 	fopen_s(&dataFile, fileName.c_str(), "rb");
 	switch (dataType) {
-	case 1:
-		while (fread(&order, sizeof(orders), 1, dataFile)) entryNumb++;
-		break;
-	case 2:
-		while (fread(&empl, sizeof(employee), 1, dataFile)) entryNumb++;
-		break;
-	case 3:
-		while (fread(&serv, sizeof(service), 1, dataFile)) entryNumb++;
-		break;
-	default: return;
+		case 1: while (fread(&order, sizeof(orders), 1, dataFile)) entryNumb++; break;
+		case 2: while (fread(&empl, sizeof(employee), 1, dataFile)) entryNumb++; break;
+		case 3: while (fread(&serv, sizeof(service), 1, dataFile)) entryNumb++; break;
+		default: return;
 	}
 	fclose(dataFile);
 
@@ -231,142 +400,15 @@ void inputVal(size_t dataType) {
 
 		switch (dataType) {
 		case 1:
-			// ID
-			order.ID = entryNumb++;
-
-			// Full Name
-			titleVal = "\tФИО заказчика по шаблону \"Иванов И.И.\": ";
-			checkVal = "([А-Я]{1})([а-я]+?) ([А-Я]{1})\\.([А-Я]{1})\\.";
-			strcpy_s(order.fullName, inputCurrentVal(&checkVal, &titleVal).c_str());
-
-			// Phone Number
-			titleVal = "\tНомер телефона заказчика: 380";
-			checkVal = "([0-9]{" + to_string(PHONE_NUMB_LENGHT) +"})";
-			str = inputCurrentVal(&checkVal, &titleVal);
-
-			for (size_t i = 0; i < str.size(); i++)
-				order.phoneNumb[i] = stoi(str.substr(i, 1));
-
-			// Date of order
-			titleVal = "\tВведите дату заказа по шаблону (дд/мм/гггг): ";
-			checkVal = "([0-2]{1}[1-9]{1}|3[0-1]{1})/(0[1-9]{1}|1[0-2]{1})/20([0-2]{1}[0-9]{1})";
-			str = inputCurrentVal(&checkVal, &titleVal);
-
-			order.dateOfOrder[0] = stoi(str.substr(0, 2));
-			order.dateOfOrder[1] = stoi(str.substr(3, 2));
-			order.dateOfOrder[2] = stoi(str.substr(6, 4));
-
-			// Services Numbers
-			output(3);
-
-			fopen_s(&servFile, SERVICES, "rb");
-			while (fread(&serv, sizeof(service), 1, servFile))
-				itemsLenght++;
-			fclose(servFile);
-
-			titleVal = "\n\n\tПеречислите через запятую номера услуг (не более " + to_string(ORDER_SERV_LENGHT) + "): ";
-			checkVal = createPatternForMultipleNumbers(5, 1, itemsLenght, false);
-			str = inputCurrentVal(&checkVal, &titleVal);
-			if (true) {
-				size_t j = 0;
-				for (size_t i = 0, n = 0; i <= str.size(); i++)
-					if (str.substr(i, 1) == "," || i == str.size()) {
-						order.servNumbers[j] = stoi(str.substr(i - n, n));
-						n = 0;
-						j++;
-					}
-					else n++;
-
-				for (j; j < ORDER_SERV_LENGHT; j++) order.servNumbers[j] = 0;
-			}
-
+			order = orderInputLayout(entryNumb++);
 			fwrite(&order, sizeof(orders), 1, dataFile);
 			break;
 		case 2:
-			// ID
-			empl.ID = entryNumb++;
-
-			// Full Name
-			titleVal = "\tФИО сотрудника по шаблону \"Иванов И.И.\": ";
-			checkVal = "([А-Я]{1})([а-я]+?) ([А-Я]{1})\\.([А-Я]{1})\\.";
-			strcpy_s(empl.fullName, inputCurrentVal(&checkVal, &titleVal).c_str());
-
-			// Phone Number
-			titleVal = "\tНомер телефона сотрудника: 380";
-			checkVal = "([0-9]{" + to_string(PHONE_NUMB_LENGHT) + "})";
-			str = inputCurrentVal(&checkVal, &titleVal);
-
-			for (size_t i = 0; i < str.size(); i++)
-				empl.phoneNumb[i] = stoi(str.substr(i, 1));
-
-			// Positions
-			cout << "\n\tСпециализации:\n";
-			for (size_t i = 0; i < POS_KOL; i++) {
-				empl.position[i] = 0;
-				cout << '\t' << pos[i].ID << ". " << pos[i].occupation << '\n';
-			}
-
-			titleVal = "\tПеречислите через запятую номера специализаций: ";
-			checkVal = createPatternForMultipleNumbers(POS_KOL, 1, POS_KOL, false);
-			str = inputCurrentVal(&checkVal, &titleVal);
-
-			for (size_t i = 0, j = 0, n = 0; i <= str.size(); i++)
-				if (str.substr(i, 1) == "," || i == str.size()) {
-					empl.position[j] = stoi(str.substr(i - n, n));
-					n = 0;
-					j++;
-				}
-				else n++;
-
+			empl = emplInputLayout(entryNumb++);
 			fwrite(&empl, sizeof(employee), 1, dataFile);
 			break;
 		case 3:
-			// ID
-			serv.ID = entryNumb++;
-
-			// Category
-			cout << "\n\tКатегории:\n";
-			for (size_t i = 0; i < POS_KOL; i++)
-				cout << '\t' << pos[i].ID << ". " << pos[i].occupation << '\n';
-
-			titleVal = "\tВыберите категорию: ";
-			checkVal = createPatternForMultipleNumbers(1, 1, POS_KOL, true);;
-			serv.category = stoi(inputCurrentVal(&checkVal, &titleVal));
-
-			// Title
-			titleVal = "\tНазвание услуги: ";
-			checkVal = "(.+?)";
-			strcpy_s(serv.title, inputCurrentVal(&checkVal, &titleVal).c_str());
-
-			// Employee
-			fopen_s(&staffFile, STAFF, "rb");
-			while (fread(&empl, sizeof(employee), 1, staffFile)) itemsLenght++;
-			fclose(staffFile);
-
-			checkVal.clear();
-			fopen_s(&staffFile, STAFF, "rb");
-			while (fread(&empl, sizeof(employee), 1, staffFile))
-				for (size_t i = 0; i < itemsLenght; i++)
-					if (empl.position[i] == serv.category) {
-						checkVal.append("|(" + to_string(empl.ID) + ")");
-						cout << "\n\t" << empl.ID << ". " << empl.fullName;
-					}
-			fclose(staffFile);
-			checkVal.erase(checkVal.begin());
-
-			titleVal = "\n\tВыберите специалиста: ";
-			serv.employee = stoi(inputCurrentVal(&checkVal, &titleVal));
-
-			// Price
-			titleVal = "\tСтоимость услуги (в $): ";
-			checkVal = "([0-9]+?)";
-			serv.price = stoi(inputCurrentVal(&checkVal, &titleVal));
-
-			// Term
-			titleVal = "\tСрок, отведённый на выполнение задачи (в днях): ";
-			checkVal = "([0-9]+?)";
-			serv.term = stoi(inputCurrentVal(&checkVal, &titleVal));
-
+			serv = servInputLayout(entryNumb++);
 			fwrite(&serv, sizeof(service), 1, dataFile);
 			break;
 		default: return;
@@ -374,31 +416,45 @@ void inputVal(size_t dataType) {
 
 		fclose(dataFile);
 
-		char inputRepeat;
-		do {
-			cout << "\n\tДостаточно? (Д/Н), ваш вариант: ";
-			cin >> inputRepeat;
-		} while (inputRepeat != 'Д' && inputRepeat != 'д' && inputRepeat != 'Н' && inputRepeat != 'н');
 
+		string titleVal = "\n\tДостаточно? (Д/Н), ваш вариант: ";
+		string checkVal = "Д|д|Н|н";
+		char inputRepeat = inputCurrentVal(&checkVal, &titleVal)[0];
 		if (inputRepeat == 'Д' || inputRepeat == 'д') break;
 
 	} while (true);
 }
 
-void output(size_t dataType) {
-
+void output(size_t dataType, size_t outputType) {
 	orders order;
 	employee empl;
 	service serv;
 
 	size_t entryNumb = 0;
-
-	string str;
+	string fileName;
 
 	switch (dataType) {
+	case 1: fileName = ORDERS; break;
+	case 2: fileName = STAFF; break;
+	case 3: fileName = SERVICES; break;
+	}
+
+	fopen_s(&dataFile, fileName.c_str(), "rb");
+	switch (dataType) {
+	case 1: while (fread(&order, sizeof(orders), 1, dataFile)) entryNumb++; break;
+	case 2: while (fread(&empl, sizeof(employee), 1, dataFile)) entryNumb++; break;
+	case 3: while (fread(&serv, sizeof(service), 1, dataFile)) entryNumb++; break;
+	default: return;
+	}
+	fclose(dataFile);
+
+	if (entryNumb) {
+		string str;
+
+		switch (dataType) {
 		case 1: {
 			//	+--------------------------------------------------------------------------------------------------------+
-			//	| ИНФОРМАЦИЯ О ВСЕХ ЗАКАЗАХ                                                                              |
+			//	|                                       ИНФОРМАЦИЯ О ВСЕХ ЗАКАЗАХ                                        |
 			//	+---+-------------+---------------+------------+--------------------------------+-----------+------------+
 			//	|   |     ФИО     |     Номер     |    Дата    |                                |           |    Дата    |
 			//	| № |  заказчика  |    телефона   |   заказа   |             Услуги             | Стоимость | исполнения |
@@ -407,7 +463,6 @@ void output(size_t dataType) {
 			//	|   |             |               |            | Сидоров С.С. - Framework       |           |            |
 			//	| 1 | Иванов И.И. | +380987654321 | 31/12/2020 | Васечкин В.В. - Внешнее SEO... |     1500$ | 09/02/2021 |
 			//	+---+-------------+---------------+------------+--------------------------------+-----------+------------+
-
 			table title[1] = {
 				{25, "ИНФОРМАЦИЯ О ВСЕХ ЗАКАЗАХ"}
 			};
@@ -455,109 +510,120 @@ void output(size_t dataType) {
 
 			fopen_s(&ordFile, ORDERS, "rb");
 			while (fread(&order, sizeof(orders), 1, ordFile)) {
-				outputTableLine(positionsSize, tabItem, 1);
-
-				size_t servLenght = 0;
-				size_t orderTerm = 0;
-				int orderPrice = 0;
-				for (size_t i = 0; i < ORDER_SERV_LENGHT; i++) {
-					if (order.servNumbers[i]) {
-						servLenght++;
-					}
-				}
-
-				for (size_t i = 0; i < servLenght; i++) {
-					cout << "\n\t";
-					outputVerticalLine(0);
-					//	ID
-					str = to_string(order.ID);
-					cout << " " << right << setw(tabItem[0].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
-					outputVerticalLine(0);
-
-					//	Full name
-					str = order.fullName;
-					cout << " " << left << setw(tabItem[1].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
-					outputVerticalLine(0);
-
-					//	Phone number
-					str = "380";
-					for (size_t j = 0; j < PHONE_NUMB_LENGHT; j++) {
-						str.append(to_string(order.phoneNumb[j]));
-					}
-					cout << " " << left << setw(tabItem[2].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
-					outputVerticalLine(0);
-
-					//	Date
-					str.clear();
-					for (size_t j = 0; j < DATE_LENGHT; j++) {
-						to_string(order.dateOfOrder[j]).size() % 10 == 2 || to_string(order.dateOfOrder[j]).size() % 10 == 4
-							? str.append(to_string(order.dateOfOrder[j]) + "/")
-							: str.append("0" + to_string(order.dateOfOrder[j]) + "/");
-					}
-					str.erase(str.end() - 1);
-					cout << " " << left << setw(tabItem[3].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
-					outputVerticalLine(0);
-
-					//	Services
-					str.clear();
-
-					fopen_s(&servFile, SERVICES, "rb");
-					while (fread(&serv, sizeof(service), 1, servFile)) {
-						if (serv.ID == order.servNumbers[i]) {
-							str.append(serv.title, 0, tabItem[4].layoutLenght - str.size() - 3);
-							orderPrice += serv.price;
-							orderTerm += serv.term;
+				bool flag = false;
+				if (outputType)
+					for (size_t j = 0; j < ORDER_SERV_LENGHT; j++) {
+						if (outputType == order.servNumbers[j]) {
+							flag = true;
 							break;
 						}
 					}
-					bool flag = false;
-					while (str.at(str.size() - 1) == ' ') {
-						str.erase(str.end() - 1);
-						flag = true;
+
+				if (!outputType || flag) {
+					outputTableLine(positionsSize, tabItem, 1);
+
+					size_t servLenght = 0;
+					size_t orderTerm = 0;
+					int orderPrice = 0;
+					for (size_t i = 0; i < ORDER_SERV_LENGHT; i++) {
+						if (order.servNumbers[i]) {
+							servLenght++;
+						}
 					}
-					if (str.size() >= tabItem[4].layoutLenght - 3 || flag) str.append("...");
 
-					fclose(servFile);
+					for (size_t i = 0; i < servLenght; i++) {
+						cout << "\n\t";
+						outputVerticalLine(0);
+						//	ID
+						str = to_string(order.ID);
+						cout << " " << right << setw(tabItem[0].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
+						outputVerticalLine(0);
 
-					cout << " " << left << setw(tabItem[4].layoutLenght) << str << " ";
-					outputVerticalLine(0);
+						//	Full name
+						str = order.fullName;
+						cout << " " << left << setw(tabItem[1].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
+						outputVerticalLine(0);
 
-					//	Price
-					str.clear();
-					str.append(to_string(orderPrice));
-					str.append("$");
+						//	Phone number
+						str = "380";
+						for (size_t j = 0; j < PHONE_NUMB_LENGHT; j++) {
+							str.append(to_string(order.phoneNumb[j]));
+						}
+						cout << " " << left << setw(tabItem[2].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
+						outputVerticalLine(0);
 
-					cout << " " << right << setw(tabItem[5].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
-					outputVerticalLine(0);
+						//	Date
+						str.clear();
+						for (size_t j = 0; j < DATE_LENGHT; j++) {
+							to_string(order.dateOfOrder[j]).size() % 10 == 2 || to_string(order.dateOfOrder[j]).size() % 10 == 4
+								? str.append(to_string(order.dateOfOrder[j]) + "/")
+								: str.append("0" + to_string(order.dateOfOrder[j]) + "/");
+						}
+						str.erase(str.end() - 1);
+						cout << " " << left << setw(tabItem[3].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
+						outputVerticalLine(0);
 
-					//	Date
+						//	Services
+						str.clear();
 
-					time_t ts_data;
-					struct tm t_data;
-					ts_data = time(NULL);
-					localtime_s(&t_data, &ts_data);
+						fopen_s(&servFile, SERVICES, "rb");
+						while (fread(&serv, sizeof(service), 1, servFile)) {
+							if (serv.ID == order.servNumbers[i]) {
+								str.append(serv.title, 0, tabItem[4].layoutLenght - str.size() - 3);
+								orderPrice += serv.price;
+								orderTerm += serv.term;
+								break;
+							}
+						}
+						bool flag = false;
+						while (str.at(str.size() - 1) == ' ') {
+							str.erase(str.end() - 1);
+							flag = true;
+						}
+						if (str.size() >= tabItem[4].layoutLenght - 3 || flag) str.append("...");
 
-					t_data.tm_mday	= (int)order.dateOfOrder[0];
-					t_data.tm_mon	= (int)order.dateOfOrder[1] - 1;
-					t_data.tm_year	= (int)order.dateOfOrder[2] - 1900;
-					ts_data = mktime(&t_data);
+						fclose(servFile);
 
-					ts_data += (time_t)orderTerm * 86400; // 1 day = 86 400 second
-					localtime_s(&t_data, &ts_data);
+						cout << " " << left << setw(tabItem[4].layoutLenght) << str << " ";
+						outputVerticalLine(0);
 
-					str.clear();
-					to_string(t_data.tm_mday).size() % 10 == 2
-						? str.append(to_string(t_data.tm_mday) + "/")
-						: str.append("0" + to_string(t_data.tm_mday) + "/");
+						//	Price
+						str.clear();
+						str.append(to_string(orderPrice));
+						str.append("$");
 
-					to_string(t_data.tm_mon + 1).size() % 10 == 2
-						? str.append(to_string(t_data.tm_mon + 1) + "/")
-						: str.append("0" + to_string(t_data.tm_mon + 1) + "/");
+						cout << " " << right << setw(tabItem[5].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
+						outputVerticalLine(0);
 
-					str.append(to_string(t_data.tm_year + 1900));
+						//	Date
 
-					cout << " " << right << setw(tabItem[6].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
-					outputVerticalLine(0);
+						time_t ts_data;
+						struct tm t_data;
+						ts_data = time(NULL);
+						localtime_s(&t_data, &ts_data);
+
+						t_data.tm_mday = (int)order.dateOfOrder[0];
+						t_data.tm_mon = (int)order.dateOfOrder[1] - 1;
+						t_data.tm_year = (int)order.dateOfOrder[2] - 1900;
+						ts_data = mktime(&t_data);
+
+						ts_data += (time_t)orderTerm * 86400; // 1 day = 86 400 second
+						localtime_s(&t_data, &ts_data);
+
+						str.clear();
+						to_string(t_data.tm_mday).size() % 10 == 2
+							? str.append(to_string(t_data.tm_mday) + "/")
+							: str.append("0" + to_string(t_data.tm_mday) + "/");
+
+						to_string(t_data.tm_mon + 1).size() % 10 == 2
+							? str.append(to_string(t_data.tm_mon + 1) + "/")
+							: str.append("0" + to_string(t_data.tm_mon + 1) + "/");
+
+						str.append(to_string(t_data.tm_year + 1900));
+
+						cout << " " << right << setw(tabItem[6].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
+						outputVerticalLine(0);
+					}
 				}
 			}
 			fclose(ordFile);
@@ -565,10 +631,10 @@ void output(size_t dataType) {
 			outputTableLine(positionsSize, tabItem, 2);
 			cout << "\n\t";
 		}
-		break;
+			  break;
 		case 2: {
 			//	+----------------------------------------------------+
-			//	| ИНФОРМАЦИЯ О ВСЕХ СОТРУДНИКАХ                      |
+			//	|            ИНФОРМАЦИЯ О ВСЕХ СОТРУДНИКАХ           |
 			//	+---+-------------+---------------+------------------+
 			//	|   |      ФИО    |      Номер    |                  |
 			//	| № |  сотрудника |    телефона   |   Квалификации   |
@@ -577,7 +643,6 @@ void output(size_t dataType) {
 			//	|   |             |               | Программирование |
 			//	| 1 | Иванов И.И. | +380987654321 | SEO-оптимизация  |
 			//	+---+-------------+---------------+------------------+
-
 			table title[1] = {
 				{29, "ИНФОРМАЦИЯ О ВСЕХ СОТРУДНИКАХ"}
 			};
@@ -677,10 +742,10 @@ void output(size_t dataType) {
 			outputTableLine(positionsSize, tabItem, 2);
 			cout << "\n\t";
 		}
-		break;
+			  break;
 		case 3: {
 			//	+---------------------------------------------------------------------------------------------+
-			//	| ИНФОРМАЦИЯ О ВСЕХ УСЛУГАХ                                                                   |
+			//	|                                  ИНФОРМАЦИЯ О ВСЕХ УСЛУГАХ                                  |
 			//	+---+---------------+------------------+-------------------------------+-----------+----------+
 			//	|   |      ФИО      |                  |                               |           |   Срок   |
 			//	| № |  сотрудника   |    Категория     |         Подкатегория          | Стоимость | (в днях) |
@@ -689,7 +754,6 @@ void output(size_t dataType) {
 			//	+---+---------------+------------------+-------------------------------+-----------+----------+
 			//	| 5 | Петров П.П.   | Программирование | WordPress                     |      500$ |        5 |
 			//	+---+---------------+------------------+-------------------------------+-----------+----------+
-
 			table title[1] = {
 				{25, "ИНФОРМАЦИЯ О ВСЕХ УСЛУГАХ"}
 			};
@@ -750,54 +814,56 @@ void output(size_t dataType) {
 
 			fopen_s(&servFile, SERVICES, "rb");
 			while (fread(&serv, sizeof(service), 1, servFile)) {
-				outputTableLine(positionsSize, tabItem, 1);
+				if (!outputType || serv.employee == outputType) {
+					outputTableLine(positionsSize, tabItem, 1);
 
-				cout << "\n\t";
-				outputVerticalLine(0);
-				//	ID
-				str = to_string(serv.ID);
-				cout << " " << right << setw(tabItem[0].layoutLenght) << str << " ";
-				outputVerticalLine(0);
+					cout << "\n\t";
+					outputVerticalLine(0);
+					//	ID
+					str = to_string(serv.ID);
+					cout << " " << right << setw(tabItem[0].layoutLenght) << str << " ";
+					outputVerticalLine(0);
 
-				//	Full name
-				fopen_s(&staffFile, STAFF, "rb");
-				while (fread(&empl, sizeof(employee), 1, staffFile)) {
-					if (empl.ID == serv.employee) {
-						str = empl.fullName;
-						break;
+					//	Full name
+					fopen_s(&staffFile, STAFF, "rb");
+					while (fread(&empl, sizeof(employee), 1, staffFile)) {
+						if (empl.ID == serv.employee) {
+							str = empl.fullName;
+							break;
+						}
 					}
-				}
-				fclose(staffFile);
+					fclose(staffFile);
 
-				cout << " " << left << setw(tabItem[1].layoutLenght) << str << " ";
-				outputVerticalLine(0);
+					cout << " " << left << setw(tabItem[1].layoutLenght) << str << " ";
+					outputVerticalLine(0);
 
-				//	Category
-				for (size_t i = 0; i < POS_KOL; i++) {
-					if (serv.category == pos[i].ID) {
-						str = pos[i].occupation;
-						break;
+					//	Category
+					for (size_t i = 0; i < POS_KOL; i++) {
+						if (serv.category == pos[i].ID) {
+							str = pos[i].occupation;
+							break;
+						}
 					}
+
+					cout << " " << left << setw(tabItem[2].layoutLenght) << str << " ";
+					outputVerticalLine(0);
+
+					//	Title
+					str = serv.title;
+					cout << " " << left << setw(tabItem[3].layoutLenght) << str << " ";
+					outputVerticalLine(0);
+
+					//	Price
+					str = to_string(serv.price);
+					str.append("$");
+					cout << " " << right << setw(tabItem[4].layoutLenght) << str << " ";
+					outputVerticalLine(0);
+
+					//	Term
+					str = to_string(serv.term);
+					cout << " " << right << setw(tabItem[5].layoutLenght) << str << " ";
+					outputVerticalLine(0);
 				}
-
-				cout << " " << left << setw(tabItem[2].layoutLenght) << str << " ";
-				outputVerticalLine(0);
-
-				//	Title
-				str = serv.title;
-				cout << " " << left << setw(tabItem[3].layoutLenght) << str << " ";
-				outputVerticalLine(0);
-
-				//	Price
-				str = to_string(serv.price);
-				str.append("$");
-				cout << " " << right << setw(tabItem[4].layoutLenght) << str << " ";
-				outputVerticalLine(0);
-
-				//	Term
-				str = to_string(serv.term);
-				cout << " " << right << setw(tabItem[5].layoutLenght) << str << " ";
-				outputVerticalLine(0);
 			}
 
 			fclose(servFile);
@@ -805,8 +871,10 @@ void output(size_t dataType) {
 			outputTableLine(positionsSize, tabItem, 2);
 			cout << "\n\t";
 		}
-		break;
+			  break;
+		}
 	}
+	else cout << "\n\tФайл с данными пуст. Попробуйте заполнить его в пункте меню: \"1 - Новая запись.\"\n";
 }
 
 void outputTableLine(size_t lenght, table *positions, size_t linePos) {
@@ -939,4 +1007,166 @@ void outputVerticalLine(size_t symbNumb) {
 
 	SetConsoleCP(1251);
 	SetConsoleOutputCP(1251);
+}
+
+void editAndRemoveVal(size_t dataType, size_t navPos) {
+	orders order;
+	employee empl;
+	service serv;
+
+	size_t lenght = 0;
+	size_t entryNumb;
+	string fileName;
+
+	switch (dataType) {
+	case 1: fileName = ORDERS; break;
+	case 2: fileName = STAFF; break;
+	case 3: fileName = SERVICES; break;
+	}
+
+	string titleVal;
+	string checkVal;
+
+	fopen_s(&dataFile, fileName.c_str(), "rb");
+	switch (dataType) {
+	case 1: while (fread(&order, sizeof(orders), 1, dataFile)) lenght++; break;
+	case 2: while (fread(&empl, sizeof(employee), 1, dataFile)) lenght++; break;
+	case 3: while (fread(&serv, sizeof(service), 1, dataFile)) lenght++; break;
+	default: return;
+	}
+	fclose(dataFile);
+
+	if (lenght) {
+		do {
+			output(dataType, 0);
+
+			switch (navPos) {
+			case 3: titleVal = "\n\tВведите номер записи, которую вы собираетесь отредактировать: "; break;
+			case 4: titleVal = "\n\tВведите номер записи, которую вы собираетесь удалить: "; break;
+			default: titleVal = "\n\tВведите номер записи: ";
+			}
+			checkVal = createPatternForMultipleNumbers(1, 1, lenght, true);
+			entryNumb = stoi(inputCurrentVal(&checkVal, &titleVal));
+
+
+			bool flag = false;
+			if (navPos == 4) {
+				fopen_s(&dataFile, fileName.c_str(), "rb");
+				switch (dataType) {
+				case 2:
+					fopen_s(&servFile, SERVICES, "rb");
+					while (fread(&serv, sizeof(service), 1, servFile)) {
+						if (entryNumb == serv.employee) {
+							flag = true;
+							break;
+						}
+					}
+					fclose(servFile);
+					break;
+				case 3:
+					fopen_s(&ordFile, ORDERS, "rb");
+					while (fread(&order, sizeof(orders), 1, ordFile)) {
+						for (size_t i = 0; i < ORDER_SERV_LENGHT; i++)
+							if (entryNumb == order.servNumbers[i]) {
+								flag = true;
+								break;
+							}
+						if (flag) break;
+					}
+					fclose(ordFile);
+					break;
+				}
+				fclose(dataFile);
+			}
+
+			if (!flag) {
+				fopen_s(&dataFile, fileName.c_str(), "a+b");
+
+				FILE* pfiletemp;
+				fopen_s(&pfiletemp, "temp.dat", "w+b");
+
+				switch (dataType) {
+				case 1:
+					while (fread(&order, sizeof(orders), 1, dataFile)) {
+						switch (navPos) {
+						case 3:
+							if (order.ID == entryNumb) {
+								order = orderInputLayout(entryNumb);
+							}
+							fwrite(&order, sizeof(orders), 1, pfiletemp);
+							break;
+						case 4:
+							if (order.ID != entryNumb) {
+								fwrite(&order, sizeof(orders), 1, pfiletemp);
+							}
+							break;
+						}
+					}
+					break;
+				case 2:
+					while (fread(&empl, sizeof(employee), 1, dataFile)) {
+						switch (navPos) {
+						case 3:
+							if (empl.ID == entryNumb) {
+								empl = emplInputLayout(entryNumb);
+							}
+							fwrite(&empl, sizeof(employee), 1, pfiletemp);
+							break;
+						case 4:
+							if (empl.ID != entryNumb) {
+								fwrite(&empl, sizeof(employee), 1, pfiletemp);
+							}
+							break;
+						}
+					}
+					break;
+				case 3:
+					while (fread(&serv, sizeof(service), 1, dataFile)) {
+						switch (navPos) {
+						case 3:
+							if (serv.ID == entryNumb) {
+								serv = servInputLayout(entryNumb);
+							}
+							fwrite(&serv, sizeof(service), 1, pfiletemp);
+							break;
+						case 4:
+							if (serv.ID != entryNumb) {
+								fwrite(&serv, sizeof(service), 1, pfiletemp);
+							}
+							break;
+						}
+					}
+					break;
+				}
+
+				fclose(pfiletemp);
+
+				fclose(dataFile);
+
+				remove(fileName.c_str());
+				rename("temp.dat", fileName.c_str());
+			}
+			else {
+				cout << "\n\tУдалить данную запись невозможно";
+				switch (dataType) {
+				case 2:
+					cout << ", т.к. она используется в следующих услугах:";
+					output(3, entryNumb);
+					break;
+				case 3:
+					cout << ", т.к. она используется в следующих заказах:";
+					output(1, entryNumb);
+					break;
+				default:
+					cout << ".";
+				}
+				cout << "(чтобы её удалить, избавитесь от всех её упоминаний)\n";
+			}
+
+			titleVal = "\n\tДостаточно? (Д/Н), ваш вариант: ";
+			checkVal = "Д|д|Н|н";
+			char inputRepeat = inputCurrentVal(&checkVal, &titleVal)[0];
+			if (inputRepeat == 'Д' || inputRepeat == 'д') break;
+		} while (true);
+	}
 }
