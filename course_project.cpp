@@ -16,7 +16,7 @@
 
 using namespace std;
 
-struct orders {
+struct order {
 	size_t	ID;
 	char	fullName[20];
 	size_t	phoneNumb[PHONE_NUMB_LENGHT];
@@ -64,7 +64,7 @@ FILE* staffFile;
 string createPatternForMultipleNumbers(size_t, size_t, size_t, bool);
 string inputCurrentVal(string*, string*);
 
-orders orderInputLayout(size_t);
+order orderInputLayout(size_t);
 employee emplInputLayout(size_t);
 service servInputLayout(size_t);
 
@@ -200,8 +200,8 @@ string inputCurrentVal(string* checkVal, string* titleVal) {
 	return str;
 }
 
-orders orderInputLayout(size_t position) {
-	orders order;
+order orderInputLayout(size_t position) {
+	order ord;
 	service serv;
 
 	string str;
@@ -211,12 +211,12 @@ orders orderInputLayout(size_t position) {
 	size_t itemsLenght = 0;
 
 	// ID
-	order.ID = position;
+	ord.ID = position;
 
 	// Full Name
 	titleVal = "\tФИО заказчика по шаблону \"Иванов И.И.\": ";
 	checkVal = "([А-Я]{1})([а-я]+?) ([А-Я]{1})\\.([А-Я]{1})\\.";
-	strcpy_s(order.fullName, inputCurrentVal(&checkVal, &titleVal).c_str());
+	strcpy_s(ord.fullName, inputCurrentVal(&checkVal, &titleVal).c_str());
 
 	// Phone Number
 	titleVal = "\tНомер телефона заказчика: 380";
@@ -224,16 +224,16 @@ orders orderInputLayout(size_t position) {
 	str = inputCurrentVal(&checkVal, &titleVal);
 
 	for (size_t i = 0; i < str.size(); i++)
-		order.phoneNumb[i] = stoi(str.substr(i, 1));
+		ord.phoneNumb[i] = stoi(str.substr(i, 1));
 
-	// Date of order
+	// Date of ord
 	titleVal = "\tВведите дату заказа по шаблону (дд/мм/гггг): ";
 	checkVal = "([0-2]{1}[1-9]{1}|3[0-1]{1})/(0[1-9]{1}|1[0-2]{1})/20([0-2]{1}[0-9]{1})";
 	str = inputCurrentVal(&checkVal, &titleVal);
 
-	order.dateOfOrder[0] = stoi(str.substr(0, 2));
-	order.dateOfOrder[1] = stoi(str.substr(3, 2));
-	order.dateOfOrder[2] = stoi(str.substr(6, 4));
+	ord.dateOfOrder[0] = stoi(str.substr(0, 2));
+	ord.dateOfOrder[1] = stoi(str.substr(3, 2));
+	ord.dateOfOrder[2] = stoi(str.substr(6, 4));
 
 	// Services Numbers
 	output(3, 0);
@@ -250,16 +250,16 @@ orders orderInputLayout(size_t position) {
 		size_t j = 0;
 		for (size_t i = 0, n = 0; i <= str.size(); i++)
 			if (str.substr(i, 1) == "," || i == str.size()) {
-				order.servNumbers[j] = stoi(str.substr(i - n, n));
+				ord.servNumbers[j] = stoi(str.substr(i - n, n));
 				n = 0;
 				j++;
 			}
 			else n++;
 
-		for (j; j < ORDER_SERV_LENGHT; j++) order.servNumbers[j] = 0;
+		for (j; j < ORDER_SERV_LENGHT; j++) ord.servNumbers[j] = 0;
 	}
 
-	return order;
+	return ord;
 }
 
 employee emplInputLayout(size_t position) {
@@ -367,7 +367,7 @@ service servInputLayout(size_t position) {
 }
 
 void inputVal(size_t dataType) {
-	orders order;
+	order ord;
 	employee empl;
 	service serv;
 
@@ -382,7 +382,7 @@ void inputVal(size_t dataType) {
 
 	fopen_s(&dataFile, fileName.c_str(), "rb");
 	switch (dataType) {
-		case 1: while (fread(&order, sizeof(orders), 1, dataFile)) entryNumb++; break;
+		case 1: while (fread(&ord, sizeof(order), 1, dataFile)) entryNumb++; break;
 		case 2: while (fread(&empl, sizeof(employee), 1, dataFile)) entryNumb++; break;
 		case 3: while (fread(&serv, sizeof(service), 1, dataFile)) entryNumb++; break;
 		default: return;
@@ -400,8 +400,8 @@ void inputVal(size_t dataType) {
 
 		switch (dataType) {
 		case 1:
-			order = orderInputLayout(entryNumb++);
-			fwrite(&order, sizeof(orders), 1, dataFile);
+			ord = orderInputLayout(entryNumb++);
+			fwrite(&ord, sizeof(order), 1, dataFile);
 			break;
 		case 2:
 			empl = emplInputLayout(entryNumb++);
@@ -426,11 +426,11 @@ void inputVal(size_t dataType) {
 }
 
 void output(size_t dataType, size_t outputType) {
-	orders order;
+	order ord;
 	employee empl;
 	service serv;
 
-	size_t entryNumb = 0;
+	size_t lenght = 0;
 	string fileName;
 
 	switch (dataType) {
@@ -441,14 +441,14 @@ void output(size_t dataType, size_t outputType) {
 
 	fopen_s(&dataFile, fileName.c_str(), "rb");
 	switch (dataType) {
-	case 1: while (fread(&order, sizeof(orders), 1, dataFile)) entryNumb++; break;
-	case 2: while (fread(&empl, sizeof(employee), 1, dataFile)) entryNumb++; break;
-	case 3: while (fread(&serv, sizeof(service), 1, dataFile)) entryNumb++; break;
+	case 1: while (fread(&ord, sizeof(order), 1, dataFile)) lenght++; break;
+	case 2: while (fread(&empl, sizeof(employee), 1, dataFile)) lenght++; break;
+	case 3: while (fread(&serv, sizeof(service), 1, dataFile)) lenght++; break;
 	default: return;
 	}
 	fclose(dataFile);
 
-	if (entryNumb) {
+	if (lenght) {
 		string str;
 
 		switch (dataType) {
@@ -481,11 +481,11 @@ void output(size_t dataType, size_t outputType) {
 
 			fopen_s(&ordFile, ORDERS, "rb");
 			size_t minServWeight = tabItem[4].layoutLenght;
-			while (fread(&order, sizeof(orders), 1, ordFile)) {
-				str = to_string(order.ID);
+			while (fread(&ord, sizeof(order), 1, ordFile)) {
+				str = to_string(ord.ID);
 				if (str.size() > tabItem[0].layoutLenght) tabItem[0].layoutLenght = str.size();
 
-				str = order.fullName;
+				str = ord.fullName;
 				if (str.size() > tabItem[1].layoutLenght) tabItem[1].layoutLenght = str.size();
 
 				if (tabItem[4].layoutLenght < tabItem[0].layoutLenght + tabItem[1].layoutLenght + minServWeight)
@@ -509,11 +509,11 @@ void output(size_t dataType, size_t outputType) {
 			outputTableHeaderRow(tabItem, positionsKol);
 
 			fopen_s(&ordFile, ORDERS, "rb");
-			while (fread(&order, sizeof(orders), 1, ordFile)) {
+			while (fread(&ord, sizeof(order), 1, ordFile)) {
 				bool flag = false;
 				if (outputType)
 					for (size_t j = 0; j < ORDER_SERV_LENGHT; j++) {
-						if (outputType == order.servNumbers[j]) {
+						if (outputType == ord.servNumbers[j]) {
 							flag = true;
 							break;
 						}
@@ -526,7 +526,7 @@ void output(size_t dataType, size_t outputType) {
 					size_t orderTerm = 0;
 					int orderPrice = 0;
 					for (size_t i = 0; i < ORDER_SERV_LENGHT; i++) {
-						if (order.servNumbers[i]) {
+						if (ord.servNumbers[i]) {
 							servLenght++;
 						}
 					}
@@ -535,19 +535,19 @@ void output(size_t dataType, size_t outputType) {
 						cout << "\n\t";
 						outputVerticalLine(0);
 						//	ID
-						str = to_string(order.ID);
+						str = to_string(ord.ID);
 						cout << " " << right << setw(tabItem[0].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
 						outputVerticalLine(0);
 
 						//	Full name
-						str = order.fullName;
+						str = ord.fullName;
 						cout << " " << left << setw(tabItem[1].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
 						outputVerticalLine(0);
 
 						//	Phone number
 						str = "380";
 						for (size_t j = 0; j < PHONE_NUMB_LENGHT; j++) {
-							str.append(to_string(order.phoneNumb[j]));
+							str.append(to_string(ord.phoneNumb[j]));
 						}
 						cout << " " << left << setw(tabItem[2].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
 						outputVerticalLine(0);
@@ -555,9 +555,9 @@ void output(size_t dataType, size_t outputType) {
 						//	Date
 						str.clear();
 						for (size_t j = 0; j < DATE_LENGHT; j++) {
-							to_string(order.dateOfOrder[j]).size() % 10 == 2 || to_string(order.dateOfOrder[j]).size() % 10 == 4
-								? str.append(to_string(order.dateOfOrder[j]) + "/")
-								: str.append("0" + to_string(order.dateOfOrder[j]) + "/");
+							to_string(ord.dateOfOrder[j]).size() % 10 == 2 || to_string(ord.dateOfOrder[j]).size() % 10 == 4
+								? str.append(to_string(ord.dateOfOrder[j]) + "/")
+								: str.append("0" + to_string(ord.dateOfOrder[j]) + "/");
 						}
 						str.erase(str.end() - 1);
 						cout << " " << left << setw(tabItem[3].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
@@ -568,7 +568,7 @@ void output(size_t dataType, size_t outputType) {
 
 						fopen_s(&servFile, SERVICES, "rb");
 						while (fread(&serv, sizeof(service), 1, servFile)) {
-							if (serv.ID == order.servNumbers[i]) {
+							if (serv.ID == ord.servNumbers[i]) {
 								str.append(serv.title, 0, tabItem[4].layoutLenght - str.size() - 3);
 								orderPrice += serv.price;
 								orderTerm += serv.term;
@@ -602,9 +602,9 @@ void output(size_t dataType, size_t outputType) {
 						ts_data = time(NULL);
 						localtime_s(&t_data, &ts_data);
 
-						t_data.tm_mday = (int)order.dateOfOrder[0];
-						t_data.tm_mon = (int)order.dateOfOrder[1] - 1;
-						t_data.tm_year = (int)order.dateOfOrder[2] - 1900;
+						t_data.tm_mday = (int)ord.dateOfOrder[0];
+						t_data.tm_mon = (int)ord.dateOfOrder[1] - 1;
+						t_data.tm_year = (int)ord.dateOfOrder[2] - 1900;
 						ts_data = mktime(&t_data);
 
 						ts_data += (time_t)orderTerm * 86400; // 1 day = 86 400 second
@@ -1010,7 +1010,7 @@ void outputVerticalLine(size_t symbNumb) {
 }
 
 void editAndRemoveVal(size_t dataType, size_t navPos) {
-	orders order;
+	order ord;
 	employee empl;
 	service serv;
 
@@ -1029,7 +1029,7 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 
 	fopen_s(&dataFile, fileName.c_str(), "rb");
 	switch (dataType) {
-	case 1: while (fread(&order, sizeof(orders), 1, dataFile)) lenght++; break;
+	case 1: while (fread(&ord, sizeof(order), 1, dataFile)) lenght++; break;
 	case 2: while (fread(&empl, sizeof(employee), 1, dataFile)) lenght++; break;
 	case 3: while (fread(&serv, sizeof(service), 1, dataFile)) lenght++; break;
 	default: return;
@@ -1041,13 +1041,14 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 			output(dataType, 0);
 
 			switch (navPos) {
-			case 3: titleVal = "\n\tВведите номер записи, которую вы собираетесь отредактировать: "; break;
-			case 4: titleVal = "\n\tВведите номер записи, которую вы собираетесь удалить: "; break;
-			default: titleVal = "\n\tВведите номер записи: ";
+			case 3: titleVal = "\n\tВведите номер записи, которую вы собираетесь отредактировать (0 для отмены): "; break;
+			case 4: titleVal = "\n\tВведите номер записи, которую вы собираетесь удалить (0 для отмены): "; break;
+			default: titleVal = "\n\tВведите номер записи (0 для отмены): ";
 			}
-			checkVal = createPatternForMultipleNumbers(1, 1, lenght, true);
+			checkVal = createPatternForMultipleNumbers(1, 0, lenght, true);
 			entryNumb = stoi(inputCurrentVal(&checkVal, &titleVal));
 
+			if (!entryNumb) break;
 
 			bool flag = false;
 			if (navPos == 4) {
@@ -1065,9 +1066,9 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 					break;
 				case 3:
 					fopen_s(&ordFile, ORDERS, "rb");
-					while (fread(&order, sizeof(orders), 1, ordFile)) {
+					while (fread(&ord, sizeof(order), 1, ordFile)) {
 						for (size_t i = 0; i < ORDER_SERV_LENGHT; i++)
-							if (entryNumb == order.servNumbers[i]) {
+							if (entryNumb == ord.servNumbers[i]) {
 								flag = true;
 								break;
 							}
@@ -1087,17 +1088,17 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 
 				switch (dataType) {
 				case 1:
-					while (fread(&order, sizeof(orders), 1, dataFile)) {
+					while (fread(&ord, sizeof(order), 1, dataFile)) {
 						switch (navPos) {
 						case 3:
-							if (order.ID == entryNumb) {
-								order = orderInputLayout(entryNumb);
+							if (ord.ID == entryNumb) {
+								ord = orderInputLayout(entryNumb);
 							}
-							fwrite(&order, sizeof(orders), 1, pfiletemp);
+							fwrite(&ord, sizeof(order), 1, pfiletemp);
 							break;
 						case 4:
-							if (order.ID != entryNumb) {
-								fwrite(&order, sizeof(orders), 1, pfiletemp);
+							if (ord.ID != entryNumb) {
+								fwrite(&ord, sizeof(order), 1, pfiletemp);
 							}
 							break;
 						}
