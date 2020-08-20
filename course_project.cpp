@@ -6,8 +6,9 @@
 #include <regex>
 
 #define ORDERS "orders.dat"
-#define STAFF "staff.dat"
 #define SERVICES "services.dat"
+#define STAFF "staff.dat"
+#define POSITIONS "positions.dat"
 
 #define POS_KOL 3
 #define DATE_LENGHT 3
@@ -24,13 +25,6 @@ struct order {
 	size_t	servNumbers[ORDER_SERV_LENGHT];
 };
 
-struct employee {
-	size_t	ID;
-	char	fullName[20];
-	size_t	phoneNumb[PHONE_NUMB_LENGHT];
-	size_t	position[POS_KOL];
-};
-
 struct service {
 	size_t	ID;
 	size_t	employee;
@@ -40,9 +34,11 @@ struct service {
 	size_t	term;
 };
 
-struct table {
-	size_t layoutLenght;
-	string title;
+struct employee {
+	size_t	ID;
+	char	fullName[20];
+	size_t	phoneNumb[PHONE_NUMB_LENGHT];
+	size_t	position[POS_KOL];
 };
 
 struct position {
@@ -50,23 +46,25 @@ struct position {
 	char occupation[20];
 };
 
-position pos[POS_KOL] = {
-	{1, "Дизайн"},
-	{2, "Программирование"},
-	{3, "SEO-оптимизация"}
+struct table {
+	size_t layoutLenght;
+	string title;
 };
 
 FILE* dataFile;
+
 FILE* ordFile;
-FILE* servFile;
 FILE* staffFile;
+FILE* servFile;
+FILE* posFile;
 
 string createPatternForMultipleNumbers(size_t, size_t, size_t, bool);
 string inputCurrentVal(string*, string*);
 
 order orderInputLayout(size_t);
-employee emplInputLayout(size_t);
 service servInputLayout(size_t);
+employee emplInputLayout(size_t);
+position posInputLayout(size_t);
 
 void outputTableLine(size_t, table*, size_t);
 void outputVerticalLine(size_t);
@@ -85,21 +83,24 @@ int main()
 
 	fopen_s(&dataFile, ORDERS, "a+");
 	fclose(dataFile);
+	fopen_s(&dataFile, SERVICES, "a+");
+	fclose(dataFile);
 	fopen_s(&dataFile, STAFF, "a+");
 	fclose(dataFile);
-	fopen_s(&dataFile, SERVICES, "a+");
+	fopen_s(&dataFile, POSITIONS, "a+");
 	fclose(dataFile);
 
 	int navPos;
 	do {
 		cout << "\n\tМеню программы."
 			<< "\n\t1 - Работа с заказами."
-			<< "\n\t2 - Работа с сотрудниками."
-			<< "\n\t3 - Работа с услугами."
+			<< "\n\t2 - Работа с услугами."
+			<< "\n\t3 - Работа с сотрудниками."
+			<< "\n\t4 - Работа с квалификациями."
 			<< "\n\t0 - Закончить программу.";
 
 		string titleVal = "\n\tВыберите пункт меню: ";
-		string checkVal = createPatternForMultipleNumbers(1, 0, 3, true);
+		string checkVal = createPatternForMultipleNumbers(1, 0, 4, true);
 
 		navPos = stoi(inputCurrentVal(&checkVal, &titleVal));
 
@@ -118,9 +119,9 @@ void navigation(size_t dataType) {
 
 		switch (dataType) {
 			case 1: cout << "ЗАКАЗЫ"; break;
-			case 2: cout << "СОТРУДНИКИ"; break;
-			case 3: cout << "УСЛУГИ"; break;
-			case 4: cout << "СПЕЦИАЛИЗАЦИИ"; break;
+			case 2: cout << "УСЛУГИ"; break;
+			case 3: cout << "СОТРУДНИКИ"; break;
+			case 4: cout << "КВАЛИФИКАЦИИ"; break;
 		}
 
 		cout << ")."
@@ -200,7 +201,7 @@ string inputCurrentVal(string* checkVal, string* titleVal) {
 	return str;
 }
 
-order orderInputLayout(size_t position) {
+order orderInputLayout(size_t ID) {
 	order ord;
 	service serv;
 
@@ -211,7 +212,7 @@ order orderInputLayout(size_t position) {
 	size_t itemsLenght = 0;
 
 	// ID
-	ord.ID = position;
+	ord.ID = ID;
 
 	// Full Name
 	titleVal = "\tФИО заказчика по шаблону \"Иванов И.И.\": ";
@@ -236,7 +237,7 @@ order orderInputLayout(size_t position) {
 	ord.dateOfOrder[2] = stoi(str.substr(6, 4));
 
 	// Services Numbers
-	output(3, 0);
+	output(2, 0);
 
 	fopen_s(&servFile, SERVICES, "rb");
 	while (fread(&serv, sizeof(service), 1, servFile))
@@ -244,7 +245,7 @@ order orderInputLayout(size_t position) {
 	fclose(servFile);
 
 	titleVal = "\n\n\tПеречислите через запятую номера услуг (не более " + to_string(ORDER_SERV_LENGHT) + "): ";
-	checkVal = createPatternForMultipleNumbers(5, 1, itemsLenght, false);
+	checkVal = createPatternForMultipleNumbers(ORDER_SERV_LENGHT, 1, itemsLenght, false);
 	str = inputCurrentVal(&checkVal, &titleVal);
 	if (true) {
 		size_t j = 0;
@@ -262,52 +263,7 @@ order orderInputLayout(size_t position) {
 	return ord;
 }
 
-employee emplInputLayout(size_t position) {
-	employee empl;
-
-	string str;
-	string titleVal;
-	string checkVal;
-
-	// ID
-	empl.ID = position;
-
-	// Full Name
-	titleVal = "\tФИО сотрудника по шаблону \"Иванов И.И.\": ";
-	checkVal = "([А-Я]{1})([а-я]+?) ([А-Я]{1})\\.([А-Я]{1})\\.";
-	strcpy_s(empl.fullName, inputCurrentVal(&checkVal, &titleVal).c_str());
-
-	// Phone Number
-	titleVal = "\tНомер телефона сотрудника: 380";
-	checkVal = "([0-9]{" + to_string(PHONE_NUMB_LENGHT) + "})";
-	str = inputCurrentVal(&checkVal, &titleVal);
-
-	for (size_t i = 0; i < str.size(); i++)
-		empl.phoneNumb[i] = stoi(str.substr(i, 1));
-
-	// Positions
-	cout << "\n\tСпециализации:\n";
-	for (size_t i = 0; i < POS_KOL; i++) {
-		empl.position[i] = 0;
-		cout << '\t' << pos[i].ID << ". " << pos[i].occupation << '\n';
-	}
-
-	titleVal = "\tПеречислите через запятую номера специализаций: ";
-	checkVal = createPatternForMultipleNumbers(POS_KOL, 1, POS_KOL, false);
-	str = inputCurrentVal(&checkVal, &titleVal);
-
-	for (size_t i = 0, j = 0, n = 0; i <= str.size(); i++)
-		if (str.substr(i, 1) == "," || i == str.size()) {
-			empl.position[j] = stoi(str.substr(i - n, n));
-			n = 0;
-			j++;
-		}
-		else n++;
-
-	return empl;
-}
-
-service servInputLayout(size_t position) {
+service servInputLayout(size_t ID) {
 	service serv;
 	employee empl;
 
@@ -318,14 +274,12 @@ service servInputLayout(size_t position) {
 	size_t itemsLenght = 0;
 
 	// ID
-	serv.ID = position;
+	serv.ID = ID;
 
 	// Category
-	cout << "\n\tКатегории:\n";
-	for (size_t i = 0; i < POS_KOL; i++)
-		cout << '\t' << pos[i].ID << ". " << pos[i].occupation << '\n';
+	output(4, 0);
 
-	titleVal = "\tВыберите категорию: ";
+	titleVal = "\n\tВыберите категорию: ";
 	checkVal = createPatternForMultipleNumbers(1, 1, POS_KOL, true);;
 	serv.category = stoi(inputCurrentVal(&checkVal, &titleVal));
 
@@ -366,31 +320,95 @@ service servInputLayout(size_t position) {
 	return serv;
 }
 
+employee emplInputLayout(size_t ID) {
+	employee empl;
+
+	string str;
+	string titleVal;
+	string checkVal;
+
+	// ID
+	empl.ID = ID;
+
+	// Full Name
+	titleVal = "\tФИО сотрудника по шаблону \"Иванов И.И.\": ";
+	checkVal = "([А-Я]{1})([а-я]+?) ([А-Я]{1})\\.([А-Я]{1})\\.";
+	strcpy_s(empl.fullName, inputCurrentVal(&checkVal, &titleVal).c_str());
+
+	// Phone Number
+	titleVal = "\tНомер телефона сотрудника: 380";
+	checkVal = "([0-9]{" + to_string(PHONE_NUMB_LENGHT) + "})";
+	str = inputCurrentVal(&checkVal, &titleVal);
+
+	for (size_t i = 0; i < str.size(); i++)
+		empl.phoneNumb[i] = stoi(str.substr(i, 1));
+
+	// Positions
+	output(4, 0);
+
+	titleVal = "\n\tПеречислите через запятую номера квалификаций: ";
+	checkVal = createPatternForMultipleNumbers(POS_KOL, 1, POS_KOL, false);
+	str = inputCurrentVal(&checkVal, &titleVal);
+
+	for (size_t i = 0; i < POS_KOL; i++) {
+		empl.position[i] = 0;
+	}
+
+	for (size_t i = 0, j = 0, n = 0; i <= str.size(); i++)
+		if (str.substr(i, 1) == "," || i == str.size()) {
+			empl.position[j] = stoi(str.substr(i - n, n));
+			n = 0;
+			j++;
+		}
+		else n++;
+
+	return empl;
+}
+
+position posInputLayout(size_t ID) {
+	position pos;
+
+	// ID
+	pos.ID = ID;
+
+	// Title
+	string str;
+	string titleVal = "\tНазвание квалификации: ";
+	string checkVal = "(.+?)";
+	strcpy_s(pos.occupation, inputCurrentVal(&checkVal, &titleVal).c_str());
+
+	return pos;
+}
+
 void inputVal(size_t dataType) {
 	order ord;
-	employee empl;
 	service serv;
+	employee empl;
+	position pos;
 
 	size_t entryNumb = 1;
 	string fileName;
 
 	switch (dataType) {
 		case 1: fileName = ORDERS; break;
-		case 2: fileName = STAFF; break;
-		case 3: fileName = SERVICES; break;
+		case 2: fileName = SERVICES; break;
+		case 3: fileName = STAFF; break;
+		case 4: fileName = POSITIONS; break;
 	}
 
 	fopen_s(&dataFile, fileName.c_str(), "rb");
 	switch (dataType) {
 		case 1: while (fread(&ord, sizeof(order), 1, dataFile)) entryNumb++; break;
-		case 2: while (fread(&empl, sizeof(employee), 1, dataFile)) entryNumb++; break;
-		case 3: while (fread(&serv, sizeof(service), 1, dataFile)) entryNumb++; break;
+		case 2: while (fread(&serv, sizeof(service), 1, dataFile)) entryNumb++; break;
+		case 3: while (fread(&empl, sizeof(employee), 1, dataFile)) entryNumb++; break;
+		case 4: while (fread(&pos, sizeof(position), 1, dataFile)) entryNumb++; break;
 		default: return;
 	}
 	fclose(dataFile);
 
 	do {
-		fopen_s(&dataFile, fileName.c_str(), "a+b");
+		string titleVal;
+		string checkVal;
 
 		size_t itemsLenght = 0;
 
@@ -398,27 +416,37 @@ void inputVal(size_t dataType) {
 			<< (entryNumb % 10 == 3 && entryNumb % 100 != 13 ? "-ей" : "-ой") 
 			<< " записи:\n";
 
+
 		switch (dataType) {
 		case 1:
-			ord = orderInputLayout(entryNumb++);
-			fwrite(&ord, sizeof(order), 1, dataFile);
+			fopen_s(&ordFile, ORDERS, "a+b");
+				ord = orderInputLayout(entryNumb++);
+				fwrite(&ord, sizeof(order), 1, ordFile);
+			fclose(ordFile);
 			break;
 		case 2:
-			empl = emplInputLayout(entryNumb++);
-			fwrite(&empl, sizeof(employee), 1, dataFile);
+			fopen_s(&servFile, SERVICES, "a+b");
+				serv = servInputLayout(entryNumb++);
+				fwrite(&serv, sizeof(service), 1, servFile);
+			fclose(servFile);
 			break;
 		case 3:
-			serv = servInputLayout(entryNumb++);
-			fwrite(&serv, sizeof(service), 1, dataFile);
+			fopen_s(&staffFile, STAFF, "a+b");
+				empl = emplInputLayout(entryNumb++);
+				fwrite(&empl, sizeof(employee), 1, staffFile);
+			fclose(staffFile);
+			break;
+		case 4:
+			fopen_s(&posFile, POSITIONS, "a+b");
+				pos = posInputLayout(entryNumb++);
+				fwrite(&pos, sizeof(position), 1, posFile);
+			fclose(posFile);
 			break;
 		default: return;
 		}
 
-		fclose(dataFile);
-
-
-		string titleVal = "\n\tДостаточно? (Д/Н), ваш вариант: ";
-		string checkVal = "Д|д|Н|н";
+		titleVal = "\n\tДостаточно? (Д/Н), ваш вариант: ";
+		checkVal = "Д|д|Н|н";
 		char inputRepeat = inputCurrentVal(&checkVal, &titleVal)[0];
 		if (inputRepeat == 'Д' || inputRepeat == 'д') break;
 
@@ -427,28 +455,45 @@ void inputVal(size_t dataType) {
 
 void output(size_t dataType, size_t outputType) {
 	order ord;
-	employee empl;
 	service serv;
+	employee empl;
+	position pos;
 
-	size_t lenght = 0;
-	string fileName;
+	bool fileIsEmpty;
 
 	switch (dataType) {
-	case 1: fileName = ORDERS; break;
-	case 2: fileName = STAFF; break;
-	case 3: fileName = SERVICES; break;
-	}
-
-	fopen_s(&dataFile, fileName.c_str(), "rb");
-	switch (dataType) {
-	case 1: while (fread(&ord, sizeof(order), 1, dataFile)) lenght++; break;
-	case 2: while (fread(&empl, sizeof(employee), 1, dataFile)) lenght++; break;
-	case 3: while (fread(&serv, sizeof(service), 1, dataFile)) lenght++; break;
+	case 1:
+		fopen_s(&ordFile, ORDERS, "rb"); 
+		fread(&ord, sizeof(order), 1, ordFile)
+			? fileIsEmpty = false
+			: fileIsEmpty = true;
+		fclose(ordFile);
+		break;
+	case 2:
+		fopen_s(&servFile, SERVICES, "rb");
+		fread(&serv, sizeof(service), 1, servFile)
+			? fileIsEmpty = false
+			: fileIsEmpty = true;
+		fclose(servFile);
+		break;
+	case 3:
+		fopen_s(&staffFile, STAFF, "rb"); 
+		fread(&empl, sizeof(employee), 1, staffFile)
+			? fileIsEmpty = false
+			: fileIsEmpty = true;
+		fclose(staffFile);
+		break;
+	case 4:
+		fopen_s(&posFile, POSITIONS, "rb"); 
+		fread(&pos, sizeof(position), 1, posFile)
+			? fileIsEmpty = false
+			: fileIsEmpty = true;
+		fclose(posFile);
+		break;
 	default: return;
 	}
-	fclose(dataFile);
 
-	if (lenght) {
+	if (!fileIsEmpty) {
 		string str;
 
 		switch (dataType) {
@@ -474,7 +519,7 @@ void output(size_t dataType, size_t outputType) {
 				{ 9, "ФИО\nзаказчика"},
 				{12, "Номер\nтелефона"},
 				{10, "Дата\nзаказа"},
-				{14, "Услуги"},
+				{30, "Услуги"},
 				{ 9, "Стоимость"},
 				{10, "Дата\nисполнения"},
 			};
@@ -488,8 +533,6 @@ void output(size_t dataType, size_t outputType) {
 				str = ord.fullName;
 				if (str.size() > tabItem[1].layoutLenght) tabItem[1].layoutLenght = str.size();
 
-				if (tabItem[4].layoutLenght < tabItem[0].layoutLenght + tabItem[1].layoutLenght + minServWeight)
-					tabItem[4].layoutLenght = tabItem[0].layoutLenght + tabItem[1].layoutLenght + minServWeight;
 				if (tabItem[4].layoutLenght % 2) tabItem[4].layoutLenght++;
 			}
 			fclose(ordFile);
@@ -498,7 +541,12 @@ void output(size_t dataType, size_t outputType) {
 			for (size_t i = 0; i < positionsKol; i++)
 				positionsSize += tabItem[i].layoutLenght;
 
-			title->layoutLenght = positionsSize - 4;
+			if (title->layoutLenght > positionsSize) {
+				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
+				positionsSize = title->layoutLenght + 4;
+				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
+			}
+			else title->layoutLenght = positionsSize - 4;
 
 			outputTableLine(positionsSize, tabItem, 5);
 
@@ -631,8 +679,145 @@ void output(size_t dataType, size_t outputType) {
 			outputTableLine(positionsSize, tabItem, 2);
 			cout << "\n\t";
 		}
-			  break;
+			break;
 		case 2: {
+			//	+---------------------------------------------------------------------------------------------+
+			//	|                                  ИНФОРМАЦИЯ О ВСЕХ УСЛУГАХ                                  |
+			//	+---+---------------+------------------+-------------------------------+-----------+----------+
+			//	|   |      ФИО      |                  |                               |           |   Срок   |
+			//	| № |  сотрудника   |    Категория     |         Подкатегория          | Стоимость | (в днях) |
+			//	+---+---------------+------------------+-------------------------------+-----------+----------+
+			//	| 4 | Васечкин В.В. | Дизайн           | Эксклюзивный (с WOW-эффектом) |      400$ |        4 |
+			//	+---+---------------+------------------+-------------------------------+-----------+----------+
+			//	| 5 | Петров П.П.   | Программирование | WordPress                     |      500$ |        5 |
+			//	+---+---------------+------------------+-------------------------------+-----------+----------+
+			table title[1] = {
+				{25, "ИНФОРМАЦИЯ О ВСЕХ УСЛУГАХ"}
+			};
+
+			const size_t positionsKol = 6;
+
+			table tabItem[positionsKol] = {
+				{ 1, "№"},
+				{10, "ФИО\nсотрудника"},
+				{ 9, "Категория"},
+				{12, "Подкатегория"},
+				{ 9, "Стоимость"},
+				{ 8, "Срок\n(в днях)"},
+			};
+
+			fopen_s(&servFile, SERVICES, "rb");
+			while (fread(&serv, sizeof(service), 1, servFile)) {
+				str = to_string(serv.ID);
+				if (str.size() > tabItem[0].layoutLenght) tabItem[0].layoutLenght = str.size();
+
+				fopen_s(&staffFile, STAFF, "rb");
+				while (fread(&empl, sizeof(employee), 1, staffFile)) {
+					str = empl.fullName;
+					if (str.size() > tabItem[1].layoutLenght) tabItem[1].layoutLenght = str.size();
+					if (tabItem[1].layoutLenght % 2) tabItem[1].layoutLenght++;
+				}
+				fclose(staffFile);
+
+				fopen_s(&posFile, POSITIONS, "rb");
+				while (fread(&pos, sizeof(position), 1, posFile)) {
+					if (serv.category == pos.ID) {
+						str = pos.occupation;
+						if (str.size() > tabItem[2].layoutLenght)
+							tabItem[2].layoutLenght = str.size();
+					}
+				}
+				fclose(posFile);
+				if (tabItem[2].layoutLenght % 2) tabItem[2].layoutLenght++;
+
+				str = serv.title;
+				if (str.size() > tabItem[3].layoutLenght) tabItem[3].layoutLenght = str.size();
+				if (tabItem[3].layoutLenght % 2) tabItem[3].layoutLenght++;
+			}
+			fclose(servFile);
+
+			size_t positionsSize = positionsKol * 3 + 1;
+			for (size_t i = 0; i < positionsKol; i++)
+				positionsSize += tabItem[i].layoutLenght;
+
+			if (title->layoutLenght > positionsSize) {
+				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
+				positionsSize = title->layoutLenght + 4;
+				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
+			}
+			else title->layoutLenght = positionsSize - 4;
+
+			outputTableLine(positionsSize, tabItem, 5);
+
+			outputTableHeaderRow(title, 1);
+
+			outputTableLine(positionsSize, tabItem, 3);
+
+			outputTableHeaderRow(tabItem, positionsKol);
+
+			fopen_s(&servFile, SERVICES, "rb");
+			while (fread(&serv, sizeof(service), 1, servFile)) {
+				if (!outputType || serv.employee == outputType) {
+					outputTableLine(positionsSize, tabItem, 1);
+
+					cout << "\n\t";
+					outputVerticalLine(0);
+					//	ID
+					str = to_string(serv.ID);
+					cout << " " << right << setw(tabItem[0].layoutLenght) << str << " ";
+					outputVerticalLine(0);
+
+					//	Full name
+					fopen_s(&staffFile, STAFF, "rb");
+					while (fread(&empl, sizeof(employee), 1, staffFile)) {
+						if (empl.ID == serv.employee) {
+							str = empl.fullName;
+							break;
+						}
+					}
+					fclose(staffFile);
+
+					cout << " " << left << setw(tabItem[1].layoutLenght) << str << " ";
+					outputVerticalLine(0);
+
+					//	Category
+					fopen_s(&posFile, POSITIONS, "rb");
+					while (fread(&pos, sizeof(position), 1, posFile)) {
+						if (serv.category == pos.ID) {
+							str = pos.occupation;
+							break;
+						}
+					}
+					fclose(posFile);
+
+					cout << " " << left << setw(tabItem[2].layoutLenght) << str << " ";
+					outputVerticalLine(0);
+
+					//	Title
+					str = serv.title;
+					cout << " " << left << setw(tabItem[3].layoutLenght) << str << " ";
+					outputVerticalLine(0);
+
+					//	Price
+					str = to_string(serv.price);
+					str.append("$");
+					cout << " " << right << setw(tabItem[4].layoutLenght) << str << " ";
+					outputVerticalLine(0);
+
+					//	Term
+					str = to_string(serv.term);
+					cout << " " << right << setw(tabItem[5].layoutLenght) << str << " ";
+					outputVerticalLine(0);
+				}
+			}
+
+			fclose(servFile);
+
+			outputTableLine(positionsSize, tabItem, 2);
+			cout << "\n\t";
+		}
+			break;
+		case 3: {
 			//	+----------------------------------------------------+
 			//	|            ИНФОРМАЦИЯ О ВСЕХ СОТРУДНИКАХ           |
 			//	+---+-------------+---------------+------------------+
@@ -656,8 +841,6 @@ void output(size_t dataType, size_t outputType) {
 				{12, "Квалификации"},
 			};
 
-			FILE* staffFile;
-
 			fopen_s(&staffFile, STAFF, "rb");
 			while (fread(&empl, sizeof(employee), 1, staffFile)) {
 				str = to_string(empl.ID);
@@ -667,15 +850,18 @@ void output(size_t dataType, size_t outputType) {
 				if (str.size() > tabItem[1].layoutLenght) tabItem[1].layoutLenght = str.size();
 				if (tabItem[1].layoutLenght % 2) tabItem[1].layoutLenght++;
 
+				fopen_s(&posFile, POSITIONS, "rb");
 				for (size_t i = 0; i < POS_KOL; i++) {
-					for (size_t j = 0; j < POS_KOL; j++) {
-						if (empl.position[j] == pos[i].ID) {
-							str = pos[i].occupation;
+					while (fread(&pos, sizeof(position), 1, posFile)) {
+						if (empl.position[i] == pos.ID) {
+							str = pos.occupation;
 							if (str.size() > tabItem[3].layoutLenght)
 								tabItem[3].layoutLenght = str.size();
 						}
 					}
 				}
+				fclose(posFile);
+
 				if (tabItem[3].layoutLenght % 2) tabItem[3].layoutLenght++;
 			}
 			fclose(staffFile);
@@ -684,7 +870,12 @@ void output(size_t dataType, size_t outputType) {
 			for (size_t i = 0; i < positionsKol; i++)
 				positionsSize += tabItem[i].layoutLenght;
 
-			title->layoutLenght = positionsSize - 4;
+			if (title->layoutLenght > positionsSize) {
+				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
+				positionsSize = title->layoutLenght + 4;
+				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
+			}
+			else title->layoutLenght = positionsSize - 4;
 
 			outputTableLine(positionsSize, tabItem, 5);
 
@@ -727,12 +918,14 @@ void output(size_t dataType, size_t outputType) {
 					outputVerticalLine(0);
 
 					//	Positions
-					for (size_t j = 0; j < POS_KOL; j++) {
-						if (pos[j].ID == empl.position[i]) {
-							str = pos[j].occupation;
+					fopen_s(&posFile, POSITIONS, "rb");
+					while (fread(&pos, sizeof(position), 1, posFile)) {
+						if (pos.ID == empl.position[i]) {
+							str = pos.occupation;
 							break;
 						}
 					}
+					fclose(posFile);
 					cout << " " << left << setw(tabItem[3].layoutLenght) << str << " ";
 					outputVerticalLine(0);
 				}
@@ -742,67 +935,50 @@ void output(size_t dataType, size_t outputType) {
 			outputTableLine(positionsSize, tabItem, 2);
 			cout << "\n\t";
 		}
-			  break;
-		case 3: {
-			//	+---------------------------------------------------------------------------------------------+
-			//	|                                  ИНФОРМАЦИЯ О ВСЕХ УСЛУГАХ                                  |
-			//	+---+---------------+------------------+-------------------------------+-----------+----------+
-			//	|   |      ФИО      |                  |                               |           |   Срок   |
-			//	| № |  сотрудника   |    Категория     |         Подкатегория          | Стоимость | (в днях) |
-			//	+---+---------------+------------------+-------------------------------+-----------+----------+
-			//	| 4 | Васечкин В.В. | Дизайн           | Эксклюзивный (с WOW-эффектом) |      400$ |        4 |
-			//	+---+---------------+------------------+-------------------------------+-----------+----------+
-			//	| 5 | Петров П.П.   | Программирование | WordPress                     |      500$ |        5 |
-			//	+---+---------------+------------------+-------------------------------+-----------+----------+
+			break;
+		case 4: {
+			//	+-------------------------------------+
+			//	|   ИНФОРМАЦИЯ О ВСЕХ КВАЛИФИКАЦИЯХ   |
+			//	+---+---------------------------------+
+			//	| № |      Название квалификации      |
+			//	+---+---------------------------------+
+			//	| 1 | Дизайн                          |
+			//	+---+---------------------------------+
+			//	| 2 | Программирование                |
+			//	+---+---------------------------------+
+			//	| 3 | SEO-оптимизация                 |
+			//	+---+---------------------------------+
 			table title[1] = {
-				{25, "ИНФОРМАЦИЯ О ВСЕХ УСЛУГАХ"}
+				{35, "ИНФОРМАЦИЯ О ВСЕХ КВАЛИФИКАЦИЯХ"}
 			};
 
-			const size_t positionsKol = 6;
+			const size_t positionsKol = 2;
 
 			table tabItem[positionsKol] = {
 				{ 1, "№"},
-				{10, "ФИО\nсотрудника"},
-				{ 9, "Категория"},
-				{12, "Подкатегория"},
-				{ 9, "Стоимость"},
-				{ 8, "Срок\n(в днях)"},
+				{21, "Название квалификации"}
 			};
 
-			fopen_s(&servFile, SERVICES, "rb");
-			while (fread(&serv, sizeof(service), 1, servFile)) {
-				str = to_string(serv.ID);
+			fopen_s(&posFile, POSITIONS, "rb");
+			while (fread(&pos, sizeof(position), 1, posFile)) {
+				str = to_string(pos.ID);
 				if (str.size() > tabItem[0].layoutLenght) tabItem[0].layoutLenght = str.size();
 
-				FILE* staffFile;
-				fopen_s(&staffFile, STAFF, "rb");
-				while (fread(&empl, sizeof(employee), 1, staffFile)) {
-					str = empl.fullName;
-					if (str.size() > tabItem[1].layoutLenght) tabItem[1].layoutLenght = str.size();
-					if (tabItem[1].layoutLenght % 2) tabItem[1].layoutLenght++;
-				}
-				fclose(staffFile);
-
-				for (size_t i = 0; i < POS_KOL; i++) {
-					if (serv.category == pos[i].ID) {
-						str = pos[i].occupation;
-						if (str.size() > tabItem[2].layoutLenght)
-							tabItem[2].layoutLenght = str.size();
-					}
-				}
-				if (tabItem[2].layoutLenght % 2) tabItem[2].layoutLenght++;
-
-				str = serv.title;
-				if (str.size() > tabItem[3].layoutLenght) tabItem[3].layoutLenght = str.size();
-				if (tabItem[3].layoutLenght % 2) tabItem[3].layoutLenght++;
+				str = pos.occupation;
+				if (str.size() > tabItem[1].layoutLenght) tabItem[1].layoutLenght = str.size();
+				if (tabItem[1].layoutLenght % 2) tabItem[1].layoutLenght++;
 			}
-			fclose(servFile);
-
+			fclose(posFile);
 			size_t positionsSize = positionsKol * 3 + 1;
 			for (size_t i = 0; i < positionsKol; i++)
 				positionsSize += tabItem[i].layoutLenght;
 
-			title->layoutLenght = positionsSize - 4;
+			if (title->layoutLenght > positionsSize) {
+				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
+				positionsSize = title->layoutLenght + 4;
+				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
+			}
+			else title->layoutLenght = positionsSize - 4;
 
 			outputTableLine(positionsSize, tabItem, 5);
 
@@ -812,66 +988,29 @@ void output(size_t dataType, size_t outputType) {
 
 			outputTableHeaderRow(tabItem, positionsKol);
 
-			fopen_s(&servFile, SERVICES, "rb");
-			while (fread(&serv, sizeof(service), 1, servFile)) {
-				if (!outputType || serv.employee == outputType) {
-					outputTableLine(positionsSize, tabItem, 1);
+			fopen_s(&posFile, POSITIONS, "rb");
+			while (fread(&pos, sizeof(position), 1, posFile)) {
+				outputTableLine(positionsSize, tabItem, 1);
 
-					cout << "\n\t";
-					outputVerticalLine(0);
-					//	ID
-					str = to_string(serv.ID);
-					cout << " " << right << setw(tabItem[0].layoutLenght) << str << " ";
-					outputVerticalLine(0);
+				cout << "\n\t";
+				outputVerticalLine(0);
+				//	ID
+				str = to_string(pos.ID);
+				cout << " " << right << setw(tabItem[0].layoutLenght) << str << " ";
+				outputVerticalLine(0);
 
-					//	Full name
-					fopen_s(&staffFile, STAFF, "rb");
-					while (fread(&empl, sizeof(employee), 1, staffFile)) {
-						if (empl.ID == serv.employee) {
-							str = empl.fullName;
-							break;
-						}
-					}
-					fclose(staffFile);
-
-					cout << " " << left << setw(tabItem[1].layoutLenght) << str << " ";
-					outputVerticalLine(0);
-
-					//	Category
-					for (size_t i = 0; i < POS_KOL; i++) {
-						if (serv.category == pos[i].ID) {
-							str = pos[i].occupation;
-							break;
-						}
-					}
-
-					cout << " " << left << setw(tabItem[2].layoutLenght) << str << " ";
-					outputVerticalLine(0);
-
-					//	Title
-					str = serv.title;
-					cout << " " << left << setw(tabItem[3].layoutLenght) << str << " ";
-					outputVerticalLine(0);
-
-					//	Price
-					str = to_string(serv.price);
-					str.append("$");
-					cout << " " << right << setw(tabItem[4].layoutLenght) << str << " ";
-					outputVerticalLine(0);
-
-					//	Term
-					str = to_string(serv.term);
-					cout << " " << right << setw(tabItem[5].layoutLenght) << str << " ";
-					outputVerticalLine(0);
-				}
+				//	Occupation
+				str = pos.occupation;
+				cout << " " << left << setw(tabItem[1].layoutLenght) << str << " ";
+				outputVerticalLine(0);
 			}
 
-			fclose(servFile);
+			fclose(posFile);
 
 			outputTableLine(positionsSize, tabItem, 2);
 			cout << "\n\t";
 		}
-			  break;
+			break;
 		}
 	}
 	else cout << "\n\tФайл с данными пуст. Попробуйте заполнить его в пункте меню: \"1 - Новая запись.\"\n";
@@ -1011,8 +1150,9 @@ void outputVerticalLine(size_t symbNumb) {
 
 void editAndRemoveVal(size_t dataType, size_t navPos) {
 	order ord;
-	employee empl;
 	service serv;
+	employee empl;
+	position pos;
 
 	size_t lenght = 0;
 	size_t entryNumb;
@@ -1020,8 +1160,9 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 
 	switch (dataType) {
 	case 1: fileName = ORDERS; break;
-	case 2: fileName = STAFF; break;
-	case 3: fileName = SERVICES; break;
+	case 2: fileName = SERVICES; break;
+	case 3: fileName = STAFF; break;
+	case 4: fileName = POSITIONS; break;
 	}
 
 	string titleVal;
@@ -1030,8 +1171,9 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 	fopen_s(&dataFile, fileName.c_str(), "rb");
 	switch (dataType) {
 	case 1: while (fread(&ord, sizeof(order), 1, dataFile)) lenght++; break;
-	case 2: while (fread(&empl, sizeof(employee), 1, dataFile)) lenght++; break;
-	case 3: while (fread(&serv, sizeof(service), 1, dataFile)) lenght++; break;
+	case 2: while (fread(&serv, sizeof(service), 1, dataFile)) lenght++; break;
+	case 3: while (fread(&empl, sizeof(employee), 1, dataFile)) lenght++; break;
+	case 4: while (fread(&pos, sizeof(position), 1, dataFile)) lenght++; break;
 	default: return;
 	}
 	fclose(dataFile);
@@ -1055,16 +1197,6 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 				fopen_s(&dataFile, fileName.c_str(), "rb");
 				switch (dataType) {
 				case 2:
-					fopen_s(&servFile, SERVICES, "rb");
-					while (fread(&serv, sizeof(service), 1, servFile)) {
-						if (entryNumb == serv.employee) {
-							flag = true;
-							break;
-						}
-					}
-					fclose(servFile);
-					break;
-				case 3:
 					fopen_s(&ordFile, ORDERS, "rb");
 					while (fread(&ord, sizeof(order), 1, ordFile)) {
 						for (size_t i = 0; i < ORDER_SERV_LENGHT; i++)
@@ -1076,18 +1208,50 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 					}
 					fclose(ordFile);
 					break;
+				case 3:
+					fopen_s(&servFile, SERVICES, "rb");
+					while (fread(&serv, sizeof(service), 1, servFile)) {
+						if (entryNumb == serv.employee) {
+							flag = true;
+							break;
+						}
+					}
+					fclose(servFile);
+					break;
+				case 4:
+					fopen_s(&servFile, SERVICES, "rb");
+					while (fread(&serv, sizeof(service), 1, servFile)) {
+						if (serv.category == pos.ID) {
+							flag = true;
+							break;
+						}
+					}
+					fclose(servFile);
+					if (!flag) {
+						fopen_s(&staffFile, STAFF, "rb");
+						while (fread(&empl, sizeof(employee), 1, staffFile)) {
+							for (size_t i = 0; i < POS_KOL; i++) {
+								if (empl.position[i] == pos.ID) {
+									flag = true;
+									break;
+								}
+							}
+						}
+						fclose(staffFile);
+					}
+					break;
 				}
 				fclose(dataFile);
 			}
 
 			if (!flag) {
-				fopen_s(&dataFile, fileName.c_str(), "a+b");
 
 				FILE* pfiletemp;
 				fopen_s(&pfiletemp, "temp.dat", "w+b");
 
 				switch (dataType) {
 				case 1:
+					fopen_s(&dataFile, fileName.c_str(), "a+b");
 					while (fread(&ord, sizeof(order), 1, dataFile)) {
 						switch (navPos) {
 						case 3:
@@ -1103,25 +1267,10 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 							break;
 						}
 					}
+					fclose(dataFile);
 					break;
 				case 2:
-					while (fread(&empl, sizeof(employee), 1, dataFile)) {
-						switch (navPos) {
-						case 3:
-							if (empl.ID == entryNumb) {
-								empl = emplInputLayout(entryNumb);
-							}
-							fwrite(&empl, sizeof(employee), 1, pfiletemp);
-							break;
-						case 4:
-							if (empl.ID != entryNumb) {
-								fwrite(&empl, sizeof(employee), 1, pfiletemp);
-							}
-							break;
-						}
-					}
-					break;
-				case 3:
+					fopen_s(&dataFile, fileName.c_str(), "a+b");
 					while (fread(&serv, sizeof(service), 1, dataFile)) {
 						switch (navPos) {
 						case 3:
@@ -1137,31 +1286,73 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 							break;
 						}
 					}
+					fclose(dataFile);
+					break;
+				case 3:
+					fopen_s(&dataFile, fileName.c_str(), "a+b");
+					while (fread(&empl, sizeof(employee), 1, dataFile)) {
+						switch (navPos) {
+						case 3:
+							if (empl.ID == entryNumb) {
+								empl = emplInputLayout(entryNumb);
+							}
+							fwrite(&empl, sizeof(employee), 1, pfiletemp);
+							break;
+						case 4:
+							if (empl.ID != entryNumb) {
+								fwrite(&empl, sizeof(employee), 1, pfiletemp);
+							}
+							break;
+						}
+					}
+					fclose(dataFile);
+					break;
+				case 4:
+					fopen_s(&dataFile, fileName.c_str(), "a+b");
+					while (fread(&pos, sizeof(position), 1, dataFile)) {
+						switch (navPos) {
+						case 3:
+							if (pos.ID == entryNumb) {
+								pos = posInputLayout(entryNumb);
+							}
+							fwrite(&pos, sizeof(position), 1, pfiletemp);
+							break;
+						case 4:
+							if (pos.ID != entryNumb) {
+								fwrite(&pos, sizeof(position), 1, pfiletemp);
+							}
+							break;
+						}
+					}
+					fclose(dataFile);
 					break;
 				}
 
 				fclose(pfiletemp);
 
-				fclose(dataFile);
-
 				remove(fileName.c_str());
 				rename("temp.dat", fileName.c_str());
 			}
 			else {
-				cout << "\n\tУдалить данную запись невозможно";
 				switch (dataType) {
 				case 2:
-					cout << ", т.к. она используется в следующих услугах:";
-					output(3, entryNumb);
-					break;
-				case 3:
-					cout << ", т.к. она используется в следующих заказах:";
+					cout << "\n\tУдалить данную запись невозможно, т.к. она используется в следующих заказах:";
 					output(1, entryNumb);
 					break;
+				case 3:
+					cout << "\n\tУдалить данную запись невозможно, т.к. она используется в следующих услугах:";
+					output(2, entryNumb);
+					break;
+				case 4:
+					cout << "\n\tУдалить данную запись невозможно, т.к. она используется в следующих услугах:";
+					output(2, entryNumb);
+					cout << "\n\tУдалить данную запись невозможно, т.к. она используется у следующих сотрудников:";
+					output(3, entryNumb);
+					break;
 				default:
-					cout << ".";
+					cout << "\n\tУдалить данную запись невозможно.";
 				}
-				cout << "(чтобы её удалить, избавитесь от всех её упоминаний)\n";
+				cout << "(чтобы удалить запись, избавитесь от всех её упоминаний)\n";
 			}
 
 			titleVal = "\n\tДостаточно? (Д/Н), ваш вариант: ";
