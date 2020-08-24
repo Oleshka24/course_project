@@ -4,16 +4,18 @@
 #include <time.h>
 #include <string>
 #include <regex>
+#include <vector>
 
 #define ORDERS "orders.dat"
 #define SERVICES "services.dat"
 #define STAFF "staff.dat"
 #define POSITIONS "positions.dat"
 
-#define POS_KOL 3
-#define DATE_LENGHT 3
+
 #define PHONE_NUMB_LENGHT 9
+#define DATE_LENGHT 3
 #define ORDER_SERV_LENGHT 5
+#define EMPL_POS_LENGHT 3
 
 using namespace std;
 
@@ -38,7 +40,7 @@ struct employee {
 	size_t	ID;
 	char	fullName[20];
 	size_t	phoneNumb[PHONE_NUMB_LENGHT];
-	size_t	position[POS_KOL];
+	size_t	position[EMPL_POS_LENGHT];
 };
 
 struct position {
@@ -66,15 +68,16 @@ service servInputLayout(size_t);
 employee emplInputLayout(size_t);
 position posInputLayout(size_t);
 
-void outputTableLine(size_t, table*, size_t);
-void outputVerticalLine(size_t);
-void outputTableHeaderRow(table*, size_t);
+void outputTabSymb(size_t);
+void outputTabLine(size_t, table*, size_t);
+void outputTabHeaderRow(table*, size_t);
 
 void navigation(size_t);
-void inputVal(size_t);
-void output(size_t, size_t);
+void input(size_t);
+void output(size_t, size_t, size_t);
 
-void editAndRemoveVal(size_t, size_t);
+void editOrRemove(size_t, size_t);
+void sorting(size_t);
 
 int main()
 {
@@ -143,21 +146,25 @@ void navigation(size_t dataType) {
 			return;
 
 		case 1:
-			inputVal(dataType);
+			input(dataType);
 			break;
 
 		case 2:
 			break;
 
 		case 3:
-			editAndRemoveVal(dataType, navPos);
+			editOrRemove(dataType, navPos);
 			break;
 
 		case 4:
-			editAndRemoveVal(dataType, navPos);
+			editOrRemove(dataType, navPos);
+			break;
+
+		case 5:
+			sorting(dataType);
 			break;
 		}
-		output(dataType, 0);
+		output(dataType, 0, dataType);
 	} while (true);
 	return;
 }
@@ -237,11 +244,14 @@ order orderInputLayout(size_t ID) {
 	ord.dateOfOrder[2] = stoi(str.substr(6, 4));
 
 	// Services Numbers
-	output(2, 0);
+	vector <size_t> servIDs;
+	output(2, 0, 2);
 
 	fopen_s(&servFile, SERVICES, "rb");
-	while (fread(&serv, sizeof(service), 1, servFile))
+	while (fread(&serv, sizeof(service), 1, servFile)) {
 		itemsLenght++;
+		servIDs.push_back(serv.ID);
+	}
 	fclose(servFile);
 
 	titleVal = "\n\n\tПеречислите через запятую номера услуг (не более " + to_string(ORDER_SERV_LENGHT) + "): ";
@@ -251,7 +261,7 @@ order orderInputLayout(size_t ID) {
 		size_t j = 0;
 		for (size_t i = 0, n = 0; i <= str.size(); i++)
 			if (str.substr(i, 1) == "," || i == str.size()) {
-				ord.servNumbers[j] = stoi(str.substr(i - n, n));
+				ord.servNumbers[j] = servIDs[stoi(str.substr(i - n, n)) - 1];
 				n = 0;
 				j++;
 			}
@@ -265,23 +275,32 @@ order orderInputLayout(size_t ID) {
 
 service servInputLayout(size_t ID) {
 	service serv;
+	position pos;
 	employee empl;
 
 	string str;
 	string titleVal;
 	string checkVal;
 
-	size_t itemsLenght = 0;
 
 	// ID
 	serv.ID = ID;
 
 	// Category
-	output(4, 0);
+	vector <size_t> posIDs;
+	output(4, 0, 4);
+
+	fopen_s(&posFile, POSITIONS, "rb");
+	size_t posLenght = 0;
+	while (fread(&pos, sizeof(position), 1, posFile)) {
+		posLenght++;
+		posIDs.push_back(pos.ID);
+	}
+	fclose(posFile);
 
 	titleVal = "\n\tВыберите категорию: ";
-	checkVal = createPatternForMultipleNumbers(1, 1, POS_KOL, true);;
-	serv.category = stoi(inputCurrentVal(&checkVal, &titleVal));
+	checkVal = createPatternForMultipleNumbers(1, 1, posLenght, true);;
+	serv.category = posIDs[stoi(inputCurrentVal(&checkVal, &titleVal)) - 1];
 
 	// Title
 	titleVal = "\tНазвание услуги: ";
@@ -289,23 +308,25 @@ service servInputLayout(size_t ID) {
 	strcpy_s(serv.title, inputCurrentVal(&checkVal, &titleVal).c_str());
 
 	// Employee
-	fopen_s(&staffFile, STAFF, "rb");
-	while (fread(&empl, sizeof(employee), 1, staffFile)) itemsLenght++;
-	fclose(staffFile);
+	vector <size_t> staffIDs;
+	output(3, 0, 3);
 
 	checkVal.clear();
 	fopen_s(&staffFile, STAFF, "rb");
-	while (fread(&empl, sizeof(employee), 1, staffFile))
-		for (size_t i = 0; i < itemsLenght; i++)
+	size_t staffLenght = 0;
+	while (fread(&empl, sizeof(employee), 1, staffFile)) {
+		for (size_t i = 0; i < staffLenght; i++)
 			if (empl.position[i] == serv.category) {
 				checkVal.append("|(" + to_string(empl.ID) + ")");
-				cout << "\n\t" << empl.ID << ". " << empl.fullName;
 			}
+		staffLenght++;
+		staffIDs.push_back(empl.ID);
+	}
 	fclose(staffFile);
 	checkVal.erase(checkVal.begin());
 
-	titleVal = "\n\tВыберите специалиста: ";
-	serv.employee = stoi(inputCurrentVal(&checkVal, &titleVal));
+	titleVal = "\n\tВыберите специалиста, который имеет выбранную квалификацию: ";
+	serv.employee = staffIDs[stoi(inputCurrentVal(&checkVal, &titleVal)) - 1];
 
 	// Price
 	titleVal = "\tСтоимость услуги (в $): ";
@@ -322,6 +343,7 @@ service servInputLayout(size_t ID) {
 
 employee emplInputLayout(size_t ID) {
 	employee empl;
+	position pos;
 
 	string str;
 	string titleVal;
@@ -344,19 +366,28 @@ employee emplInputLayout(size_t ID) {
 		empl.phoneNumb[i] = stoi(str.substr(i, 1));
 
 	// Positions
-	output(4, 0);
+	vector <size_t> posIDs;
+	output(4, 0, 4);
+
+	fopen_s(&posFile, POSITIONS, "rb");
+	size_t posLenght = 0;
+	while (fread(&pos, sizeof(position), 1, posFile)) {
+		posLenght++;
+		posIDs.push_back(pos.ID);
+	}
+	fclose(posFile);
 
 	titleVal = "\n\tПеречислите через запятую номера квалификаций: ";
-	checkVal = createPatternForMultipleNumbers(POS_KOL, 1, POS_KOL, false);
+	checkVal = createPatternForMultipleNumbers(EMPL_POS_LENGHT, 1, posLenght, false);
 	str = inputCurrentVal(&checkVal, &titleVal);
 
-	for (size_t i = 0; i < POS_KOL; i++) {
+	for (size_t i = 0; i < EMPL_POS_LENGHT; i++) {
 		empl.position[i] = 0;
 	}
 
 	for (size_t i = 0, j = 0, n = 0; i <= str.size(); i++)
 		if (str.substr(i, 1) == "," || i == str.size()) {
-			empl.position[j] = stoi(str.substr(i - n, n));
+			empl.position[j] = posIDs[stoi(str.substr(i - n, n)) - 1];
 			n = 0;
 			j++;
 		}
@@ -380,7 +411,7 @@ position posInputLayout(size_t ID) {
 	return pos;
 }
 
-void inputVal(size_t dataType) {
+void input(size_t dataType) {
 	order ord;
 	service serv;
 	employee empl;
@@ -453,7 +484,7 @@ void inputVal(size_t dataType) {
 	} while (true);
 }
 
-void output(size_t dataType, size_t outputType) {
+void output(size_t dataType, size_t outputType, size_t navPos) {
 	order ord;
 	service serv;
 	employee empl;
@@ -541,34 +572,49 @@ void output(size_t dataType, size_t outputType) {
 			for (size_t i = 0; i < positionsKol; i++)
 				positionsSize += tabItem[i].layoutLenght;
 
-			if (title->layoutLenght > positionsSize) {
-				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
-				positionsSize = title->layoutLenght + 4;
-				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
+			while (title->layoutLenght > positionsSize) {
+				positionsSize = 1;
+				for (size_t i = 0; i < positionsKol; i++) {
+					if (tabItem[i].title != "№") {
+						tabItem[i].layoutLenght += 2;
+					}
+					positionsSize += tabItem[i].layoutLenght + 3;
+				}
 			}
-			else title->layoutLenght = positionsSize - 4;
+			title->layoutLenght = positionsSize - 4;
 
-			outputTableLine(positionsSize, tabItem, 5);
+			outputTabLine(positionsSize, tabItem, 5);
 
-			outputTableHeaderRow(title, 1);
+			outputTabHeaderRow(title, 1);
 
-			outputTableLine(positionsSize, tabItem, 3);
+			outputTabLine(positionsSize, tabItem, 3);
 
-			outputTableHeaderRow(tabItem, positionsKol);
+			outputTabHeaderRow(tabItem, positionsKol);
 
+			size_t index = 0;
 			fopen_s(&ordFile, ORDERS, "rb");
 			while (fread(&ord, sizeof(order), 1, ordFile)) {
+
 				bool flag = false;
-				if (outputType)
-					for (size_t j = 0; j < ORDER_SERV_LENGHT; j++) {
-						if (outputType == ord.servNumbers[j]) {
-							flag = true;
-							break;
+				if (outputType) {
+					switch (navPos) {
+					case 2:
+						for (size_t j = 0; j < ORDER_SERV_LENGHT; j++) {
+							if (outputType == ord.servNumbers[j]) {
+								flag = true;
+								break;
+							}
 						}
+						break;
+					default:
+						flag = true;
 					}
+				}
 
 				if (!outputType || flag) {
-					outputTableLine(positionsSize, tabItem, 1);
+					index++;
+
+					outputTabLine(positionsSize, tabItem, 1);
 
 					size_t servLenght = 0;
 					size_t orderTerm = 0;
@@ -581,16 +627,16 @@ void output(size_t dataType, size_t outputType) {
 
 					for (size_t i = 0; i < servLenght; i++) {
 						cout << "\n\t";
-						outputVerticalLine(0);
+						outputTabSymb(0);
 						//	ID
-						str = to_string(ord.ID);
+						str = to_string(index);
 						cout << " " << right << setw(tabItem[0].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
-						outputVerticalLine(0);
+						outputTabSymb(0);
 
 						//	Full name
 						str = ord.fullName;
 						cout << " " << left << setw(tabItem[1].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
-						outputVerticalLine(0);
+						outputTabSymb(0);
 
 						//	Phone number
 						str = "380";
@@ -598,7 +644,7 @@ void output(size_t dataType, size_t outputType) {
 							str.append(to_string(ord.phoneNumb[j]));
 						}
 						cout << " " << left << setw(tabItem[2].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
-						outputVerticalLine(0);
+						outputTabSymb(0);
 
 						//	Date
 						str.clear();
@@ -609,7 +655,7 @@ void output(size_t dataType, size_t outputType) {
 						}
 						str.erase(str.end() - 1);
 						cout << " " << left << setw(tabItem[3].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
-						outputVerticalLine(0);
+						outputTabSymb(0);
 
 						//	Services
 						str.clear();
@@ -633,7 +679,7 @@ void output(size_t dataType, size_t outputType) {
 						fclose(servFile);
 
 						cout << " " << left << setw(tabItem[4].layoutLenght) << str << " ";
-						outputVerticalLine(0);
+						outputTabSymb(0);
 
 						//	Price
 						str.clear();
@@ -641,7 +687,7 @@ void output(size_t dataType, size_t outputType) {
 						str.append("$");
 
 						cout << " " << right << setw(tabItem[5].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
-						outputVerticalLine(0);
+						outputTabSymb(0);
 
 						//	Date
 
@@ -670,16 +716,16 @@ void output(size_t dataType, size_t outputType) {
 						str.append(to_string(t_data.tm_year + 1900));
 
 						cout << " " << right << setw(tabItem[6].layoutLenght) << (i + 1 == servLenght ? str : " ") << " ";
-						outputVerticalLine(0);
+						outputTabSymb(0);
 					}
 				}
 			}
 			fclose(ordFile);
 
-			outputTableLine(positionsSize, tabItem, 2);
+			outputTabLine(positionsSize, tabItem, 2);
 			cout << "\n\t";
-		}
 			break;
+		}
 		case 2: {
 			//	+---------------------------------------------------------------------------------------------+
 			//	|                                  ИНФОРМАЦИЯ О ВСЕХ УСЛУГАХ                                  |
@@ -740,32 +786,53 @@ void output(size_t dataType, size_t outputType) {
 			for (size_t i = 0; i < positionsKol; i++)
 				positionsSize += tabItem[i].layoutLenght;
 
-			if (title->layoutLenght > positionsSize) {
-				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
-				positionsSize = title->layoutLenght + 4;
-				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
+			while (title->layoutLenght > positionsSize) {
+				positionsSize = 1;
+				for (size_t i = 0; i < positionsKol; i++) {
+					if (tabItem[i].title != "№") {
+						tabItem[i].layoutLenght += 2;
+					}
+					positionsSize += tabItem[i].layoutLenght + 3;
+				}
 			}
-			else title->layoutLenght = positionsSize - 4;
+			title->layoutLenght = positionsSize - 4;
 
-			outputTableLine(positionsSize, tabItem, 5);
+			outputTabLine(positionsSize, tabItem, 5);
 
-			outputTableHeaderRow(title, 1);
+			outputTabHeaderRow(title, 1);
 
-			outputTableLine(positionsSize, tabItem, 3);
+			outputTabLine(positionsSize, tabItem, 3);
 
-			outputTableHeaderRow(tabItem, positionsKol);
+			outputTabHeaderRow(tabItem, positionsKol);
 
+			size_t index = 0;
 			fopen_s(&servFile, SERVICES, "rb");
 			while (fread(&serv, sizeof(service), 1, servFile)) {
-				if (!outputType || serv.employee == outputType) {
-					outputTableLine(positionsSize, tabItem, 1);
+				bool flag = false;
+				if (outputType) {
+					switch (navPos) {
+					case 3:
+						flag = serv.employee == outputType;
+						break;
+					case 4:
+						flag = serv.category == outputType;
+						break;
+					default:
+						flag = true;
+					}
+				}
+
+				if (!outputType || flag) {
+					index++;
+
+					outputTabLine(positionsSize, tabItem, 1);
 
 					cout << "\n\t";
-					outputVerticalLine(0);
+					outputTabSymb(0);
 					//	ID
-					str = to_string(serv.ID);
+					str = to_string(index);
 					cout << " " << right << setw(tabItem[0].layoutLenght) << str << " ";
-					outputVerticalLine(0);
+					outputTabSymb(0);
 
 					//	Full name
 					fopen_s(&staffFile, STAFF, "rb");
@@ -778,7 +845,7 @@ void output(size_t dataType, size_t outputType) {
 					fclose(staffFile);
 
 					cout << " " << left << setw(tabItem[1].layoutLenght) << str << " ";
-					outputVerticalLine(0);
+					outputTabSymb(0);
 
 					//	Category
 					fopen_s(&posFile, POSITIONS, "rb");
@@ -791,32 +858,32 @@ void output(size_t dataType, size_t outputType) {
 					fclose(posFile);
 
 					cout << " " << left << setw(tabItem[2].layoutLenght) << str << " ";
-					outputVerticalLine(0);
+					outputTabSymb(0);
 
 					//	Title
 					str = serv.title;
 					cout << " " << left << setw(tabItem[3].layoutLenght) << str << " ";
-					outputVerticalLine(0);
+					outputTabSymb(0);
 
 					//	Price
 					str = to_string(serv.price);
 					str.append("$");
 					cout << " " << right << setw(tabItem[4].layoutLenght) << str << " ";
-					outputVerticalLine(0);
+					outputTabSymb(0);
 
 					//	Term
 					str = to_string(serv.term);
 					cout << " " << right << setw(tabItem[5].layoutLenght) << str << " ";
-					outputVerticalLine(0);
+					outputTabSymb(0);
 				}
 			}
 
 			fclose(servFile);
 
-			outputTableLine(positionsSize, tabItem, 2);
+			outputTabLine(positionsSize, tabItem, 2);
 			cout << "\n\t";
-		}
 			break;
+		}
 		case 3: {
 			//	+----------------------------------------------------+
 			//	|            ИНФОРМАЦИЯ О ВСЕХ СОТРУДНИКАХ           |
@@ -851,7 +918,7 @@ void output(size_t dataType, size_t outputType) {
 				if (tabItem[1].layoutLenght % 2) tabItem[1].layoutLenght++;
 
 				fopen_s(&posFile, POSITIONS, "rb");
-				for (size_t i = 0; i < POS_KOL; i++) {
+				for (size_t i = 0; i < EMPL_POS_LENGHT; i++) {
 					while (fread(&pos, sizeof(position), 1, posFile)) {
 						if (empl.position[i] == pos.ID) {
 							str = pos.occupation;
@@ -870,72 +937,97 @@ void output(size_t dataType, size_t outputType) {
 			for (size_t i = 0; i < positionsKol; i++)
 				positionsSize += tabItem[i].layoutLenght;
 
-			if (title->layoutLenght > positionsSize) {
-				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
-				positionsSize = title->layoutLenght + 4;
-				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
+			while (title->layoutLenght > positionsSize) {
+				positionsSize = 1;
+				for (size_t i = 0; i < positionsKol; i++) {
+					if (tabItem[i].title != "№") {
+						tabItem[i].layoutLenght += 2;
+					}
+					positionsSize += tabItem[i].layoutLenght + 3;
+				}
 			}
-			else title->layoutLenght = positionsSize - 4;
+			title->layoutLenght = positionsSize - 4;
 
-			outputTableLine(positionsSize, tabItem, 5);
+			outputTabLine(positionsSize, tabItem, 5);
 
-			outputTableHeaderRow(title, 1);
+			outputTabHeaderRow(title, 1);
 
-			outputTableLine(positionsSize, tabItem, 3);
+			outputTabLine(positionsSize, tabItem, 3);
 
-			outputTableHeaderRow(tabItem, positionsKol);
+			outputTabHeaderRow(tabItem, positionsKol);
 
+			size_t index = 0;
 			fopen_s(&staffFile, STAFF, "rb");
 			while (fread(&empl, sizeof(employee), 1, staffFile)) {
-				outputTableLine(positionsSize, tabItem, 1);
-
-				size_t posLenght = 0;
-				for (size_t i = 0; i < POS_KOL; i++) {
-					if (empl.position[i]) {
-						posLenght++;
+				bool flag = false;
+				if (outputType) {
+					switch (navPos) {
+					case 4:
+						for (size_t j = 0; j < EMPL_POS_LENGHT; j++) {
+							if (outputType == empl.position[j]) {
+								flag = true;
+								break;
+							}
+						}
+						break;
+					default:
+						flag = true;
 					}
 				}
 
-				for (size_t i = 0; i < posLenght; i++) {
-					cout << "\n\t";
-					outputVerticalLine(0);
-					//	ID
-					str = to_string(empl.ID);
-					cout << " " << right << setw(tabItem[0].layoutLenght) << (i + 1 == posLenght ? str : " ") << " ";
-					outputVerticalLine(0);
+				if (!outputType || flag) {
+					index++;
 
-					//	Full name
-					str = empl.fullName;
-					cout << " " << left << setw(tabItem[1].layoutLenght) << (i + 1 == posLenght ? str : " ") << " ";
-					outputVerticalLine(0);
+					outputTabLine(positionsSize, tabItem, 1);
 
-					//	Phone number
-					str = "380";
-					for (size_t j = 0; j < PHONE_NUMB_LENGHT; j++) {
-						str.append(to_string(empl.phoneNumb[j]));
-					}
-					cout << " " << left << setw(tabItem[2].layoutLenght) << (i + 1 == posLenght ? str : " ") << " ";
-					outputVerticalLine(0);
-
-					//	Positions
-					fopen_s(&posFile, POSITIONS, "rb");
-					while (fread(&pos, sizeof(position), 1, posFile)) {
-						if (pos.ID == empl.position[i]) {
-							str = pos.occupation;
-							break;
+					size_t posLenght = 0;
+					for (size_t i = 0; i < EMPL_POS_LENGHT; i++) {
+						if (empl.position[i]) {
+							posLenght++;
 						}
 					}
-					fclose(posFile);
-					cout << " " << left << setw(tabItem[3].layoutLenght) << str << " ";
-					outputVerticalLine(0);
+
+					for (size_t i = 0; i < posLenght; i++) {
+						cout << "\n\t";
+						outputTabSymb(0);
+						//	ID
+						str = to_string(index);
+						cout << " " << right << setw(tabItem[0].layoutLenght) << (i + 1 == posLenght ? str : " ") << " ";
+						outputTabSymb(0);
+
+						//	Full name
+						str = empl.fullName;
+						cout << " " << left << setw(tabItem[1].layoutLenght) << (i + 1 == posLenght ? str : " ") << " ";
+						outputTabSymb(0);
+
+						//	Phone number
+						str = "380";
+						for (size_t j = 0; j < PHONE_NUMB_LENGHT; j++) {
+							str.append(to_string(empl.phoneNumb[j]));
+						}
+						cout << " " << left << setw(tabItem[2].layoutLenght) << (i + 1 == posLenght ? str : " ") << " ";
+						outputTabSymb(0);
+
+						//	Positions
+						fopen_s(&posFile, POSITIONS, "rb");
+						while (fread(&pos, sizeof(position), 1, posFile)) {
+							if (pos.ID == empl.position[i]) {
+								str = pos.occupation;
+								break;
+							}
+						}
+						fclose(posFile);
+						cout << " " << left << setw(tabItem[3].layoutLenght) << str << " ";
+						outputTabSymb(0);
+					}
 				}
 			}
 			fclose(staffFile);
 
-			outputTableLine(positionsSize, tabItem, 2);
+			outputTabLine(positionsSize, tabItem, 2);
 			cout << "\n\t";
-		}
 			break;
+		}
 		case 4: {
 			//	+-------------------------------------+
 			//	|   ИНФОРМАЦИЯ О ВСЕХ КВАЛИФИКАЦИЯХ   |
@@ -973,50 +1065,56 @@ void output(size_t dataType, size_t outputType) {
 			for (size_t i = 0; i < positionsKol; i++)
 				positionsSize += tabItem[i].layoutLenght;
 
-			if (title->layoutLenght > positionsSize) {
-				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
-				positionsSize = title->layoutLenght + 4;
-				tabItem[positionsKol - 1].layoutLenght = positionsSize - tabItem[positionsKol - 1].layoutLenght;
+			while (title->layoutLenght > positionsSize) {
+				positionsSize = 1;
+				for (size_t i = 0; i < positionsKol; i++) {
+					if (tabItem[i].title != "№") {
+						tabItem[i].layoutLenght += 2;
+					}
+					positionsSize += tabItem[i].layoutLenght + 3;
+				}
 			}
-			else title->layoutLenght = positionsSize - 4;
+			title->layoutLenght = positionsSize - 4;
 
-			outputTableLine(positionsSize, tabItem, 5);
+			outputTabLine(positionsSize, tabItem, 5);
 
-			outputTableHeaderRow(title, 1);
+			outputTabHeaderRow(title, 1);
 
-			outputTableLine(positionsSize, tabItem, 3);
+			outputTabLine(positionsSize, tabItem, 3);
 
-			outputTableHeaderRow(tabItem, positionsKol);
+			outputTabHeaderRow(tabItem, positionsKol);
 
+			size_t index = 0;
 			fopen_s(&posFile, POSITIONS, "rb");
 			while (fread(&pos, sizeof(position), 1, posFile)) {
-				outputTableLine(positionsSize, tabItem, 1);
+				index++;
 
+				outputTabLine(positionsSize, tabItem, 1);
 				cout << "\n\t";
-				outputVerticalLine(0);
+				outputTabSymb(0);
 				//	ID
-				str = to_string(pos.ID);
+				str = to_string(index);
 				cout << " " << right << setw(tabItem[0].layoutLenght) << str << " ";
-				outputVerticalLine(0);
+				outputTabSymb(0);
 
 				//	Occupation
 				str = pos.occupation;
 				cout << " " << left << setw(tabItem[1].layoutLenght) << str << " ";
-				outputVerticalLine(0);
+				outputTabSymb(0);
 			}
 
 			fclose(posFile);
 
-			outputTableLine(positionsSize, tabItem, 2);
+			outputTabLine(positionsSize, tabItem, 2);
 			cout << "\n\t";
-		}
 			break;
+		}
 		}
 	}
 	else cout << "\n\tФайл с данными пуст. Попробуйте заполнить его в пункте меню: \"1 - Новая запись.\"\n";
 }
 
-void outputTableLine(size_t lenght, table *positions, size_t linePos) {
+void outputTabLine(size_t lenght, table *positions, size_t linePos) {
 	//	linePos:
 	//	0 - top
 	//	1 - center
@@ -1033,50 +1131,50 @@ void outputTableLine(size_t lenght, table *positions, size_t linePos) {
 			switch (linePos) {
 				case 0:
 				case 5:
-					outputVerticalLine(3); break;
+					outputTabSymb(3); break;
 				case 1: 
 				case 3: 
 				case 4: 
-					outputVerticalLine(7); break;
+					outputTabSymb(7); break;
 				case 2:
 				case 6:
-					outputVerticalLine(4); break;
+					outputTabSymb(4); break;
 			}
 		}
 		else if (i == lenght - 1) {
 			switch (linePos) {
 				case 0:
 				case 5:
-					outputVerticalLine(5); break;
+					outputTabSymb(5); break;
 				case 1: 
 				case 3: 
 				case 4: 
-					outputVerticalLine(8); break;
+					outputTabSymb(8); break;
 				case 2:
 				case 6:
-					outputVerticalLine(6); break;
+					outputTabSymb(6); break;
 			}
 		}
 		else if (pos + 3 == i) {
 			switch (linePos) {
 				case 0: 
 				case 3:	
-					outputVerticalLine(9); break;
+					outputTabSymb(9); break;
 				case 1: 
-					outputVerticalLine(2); break;
+					outputTabSymb(2); break;
 				case 2:
 				case 4:
-					outputVerticalLine(10); break;
+					outputTabSymb(10); break;
 				case 5:
 				case 6:
-					outputVerticalLine(1); break;
+					outputTabSymb(1); break;
 			}
 			pos += positions[++j].layoutLenght + 3;
 		}
-		else outputVerticalLine(1);
+		else outputTabSymb(1);
 }
 
-void outputTableHeaderRow(table* item, size_t kol) {
+void outputTabHeaderRow(table* item, size_t kol) {
 	string	str;
 	size_t	maxRowsKol = 1;
 	size_t* rowsKol = new size_t[kol];
@@ -1093,7 +1191,7 @@ void outputTableHeaderRow(table* item, size_t kol) {
 
 	for (size_t i = maxRowsKol; i >= 1; i--) {
 		cout << "\n\t";
-		outputVerticalLine(0);
+		outputTabSymb(0);
 
 		for (size_t j = 0; j < kol; j++) {
 			str.clear();
@@ -1119,14 +1217,14 @@ void outputTableHeaderRow(table* item, size_t kol) {
 			}
 			else cout << right << " " << setw(item[j].layoutLenght) << str << " ";
 
-			outputVerticalLine(0);
+			outputTabSymb(0);
 		}
 	}
 
 	delete[] rowsKol;
 }
 
-void outputVerticalLine(size_t symbNumb) {
+void outputTabSymb(size_t symbNumb) {
 	SetConsoleCP(437);
 	SetConsoleOutputCP(437);
 
@@ -1148,7 +1246,7 @@ void outputVerticalLine(size_t symbNumb) {
 	SetConsoleOutputCP(1251);
 }
 
-void editAndRemoveVal(size_t dataType, size_t navPos) {
+void editOrRemove(size_t dataType, size_t navPos) {
 	order ord;
 	service serv;
 	employee empl;
@@ -1168,19 +1266,41 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 	string titleVal;
 	string checkVal;
 
+	vector <size_t> itemsIDs;
+
 	fopen_s(&dataFile, fileName.c_str(), "rb");
 	switch (dataType) {
-	case 1: while (fread(&ord, sizeof(order), 1, dataFile)) lenght++; break;
-	case 2: while (fread(&serv, sizeof(service), 1, dataFile)) lenght++; break;
-	case 3: while (fread(&empl, sizeof(employee), 1, dataFile)) lenght++; break;
-	case 4: while (fread(&pos, sizeof(position), 1, dataFile)) lenght++; break;
+	case 1: 
+		while (fread(&ord, sizeof(order), 1, dataFile)) {
+			lenght++;
+			itemsIDs.push_back(ord.ID);
+		}
+		break;
+	case 2:
+		while (fread(&serv, sizeof(service), 1, dataFile)) {
+			lenght++;
+			itemsIDs.push_back(serv.ID);
+		}
+		break;
+	case 3:
+		while (fread(&empl, sizeof(employee), 1, dataFile)) {
+			lenght++;
+			itemsIDs.push_back(empl.ID);
+		}
+		break;
+	case 4:
+		while (fread(&pos, sizeof(position), 1, dataFile)) {
+			lenght++;
+			itemsIDs.push_back(pos.ID);
+		}
+		break;
 	default: return;
 	}
 	fclose(dataFile);
 
 	if (lenght) {
 		do {
-			output(dataType, 0);
+			output(dataType, 0, dataType);
 
 			switch (navPos) {
 			case 3: titleVal = "\n\tВведите номер записи, которую вы собираетесь отредактировать (0 для отмены): "; break;
@@ -1188,23 +1308,24 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 			default: titleVal = "\n\tВведите номер записи (0 для отмены): ";
 			}
 			checkVal = createPatternForMultipleNumbers(1, 0, lenght, true);
-			entryNumb = stoi(inputCurrentVal(&checkVal, &titleVal));
+			entryNumb = itemsIDs[stoi(inputCurrentVal(&checkVal, &titleVal)) - 1];
 
 			if (!entryNumb) break;
 
-			bool flag = false;
+			bool flag[2] = { false, false };
 			if (navPos == 4) {
-				fopen_s(&dataFile, fileName.c_str(), "rb");
 				switch (dataType) {
 				case 2:
 					fopen_s(&ordFile, ORDERS, "rb");
 					while (fread(&ord, sizeof(order), 1, ordFile)) {
-						for (size_t i = 0; i < ORDER_SERV_LENGHT; i++)
+						for (size_t i = 0; i < ORDER_SERV_LENGHT; i++) {
 							if (entryNumb == ord.servNumbers[i]) {
-								flag = true;
+								flag[0] = true;
+								flag[1] = true;
 								break;
 							}
-						if (flag) break;
+						}
+						if (flag[0]) break;
 					}
 					fclose(ordFile);
 					break;
@@ -1212,7 +1333,8 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 					fopen_s(&servFile, SERVICES, "rb");
 					while (fread(&serv, sizeof(service), 1, servFile)) {
 						if (entryNumb == serv.employee) {
-							flag = true;
+							flag[0] = true;
+							flag[1] = true;
 							break;
 						}
 					}
@@ -1221,30 +1343,26 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 				case 4:
 					fopen_s(&servFile, SERVICES, "rb");
 					while (fread(&serv, sizeof(service), 1, servFile)) {
-						if (serv.category == pos.ID) {
-							flag = true;
+						if (entryNumb == serv.category) {
+							flag[0] = true;
 							break;
 						}
 					}
 					fclose(servFile);
-					if (!flag) {
-						fopen_s(&staffFile, STAFF, "rb");
-						while (fread(&empl, sizeof(employee), 1, staffFile)) {
-							for (size_t i = 0; i < POS_KOL; i++) {
-								if (empl.position[i] == pos.ID) {
-									flag = true;
-									break;
-								}
+					fopen_s(&staffFile, STAFF, "rb");
+					while (fread(&empl, sizeof(employee), 1, staffFile)) {
+						for (size_t i = 0; i < EMPL_POS_LENGHT; i++) {
+							if (entryNumb == empl.position[i]) {
+								flag[1] = true;
+								break;
 							}
 						}
-						fclose(staffFile);
 					}
+					fclose(staffFile);
 					break;
 				}
-				fclose(dataFile);
 			}
-
-			if (!flag) {
+			if (!flag[0] && !flag[1]) {
 
 				FILE* pfiletemp;
 				fopen_s(&pfiletemp, "temp.dat", "w+b");
@@ -1281,6 +1399,7 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 							break;
 						case 4:
 							if (serv.ID != entryNumb) {
+								if (serv.ID > entryNumb) serv.ID--;
 								fwrite(&serv, sizeof(service), 1, pfiletemp);
 							}
 							break;
@@ -1300,6 +1419,7 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 							break;
 						case 4:
 							if (empl.ID != entryNumb) {
+								if (empl.ID > entryNumb) empl.ID--;
 								fwrite(&empl, sizeof(employee), 1, pfiletemp);
 							}
 							break;
@@ -1319,6 +1439,7 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 							break;
 						case 4:
 							if (pos.ID != entryNumb) {
+								if (pos.ID > entryNumb) pos.ID--;
 								fwrite(&pos, sizeof(position), 1, pfiletemp);
 							}
 							break;
@@ -1332,22 +1453,100 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 
 				remove(fileName.c_str());
 				rename("temp.dat", fileName.c_str());
+
+				if (navPos == 4)
+					switch (dataType) {
+					case 2:
+						fopen_s(&pfiletemp, "temp.dat", "w+b");
+
+						fopen_s(&ordFile, ORDERS, "rb");
+						while (fread(&ord, sizeof(order), 1, ordFile)) {
+							for (size_t i = 0; i < ORDER_SERV_LENGHT; i++)
+								if (ord.servNumbers[i] > entryNumb) {
+									ord.servNumbers[i]--;
+								}
+							fwrite(&ord, sizeof(order), 1, pfiletemp);
+						}
+						fclose(ordFile);
+
+						fclose(pfiletemp);
+
+						remove(ORDERS);
+						rename("temp.dat", ORDERS);
+						break;
+					case 3:
+						fopen_s(&pfiletemp, "temp.dat", "w+b");
+
+						fopen_s(&servFile, SERVICES, "rb");
+						while (fread(&serv, sizeof(service), 1, servFile)) {
+							if (serv.employee > entryNumb) {
+								serv.employee--;
+							}
+							fwrite(&serv, sizeof(service), 1, pfiletemp);
+						}
+						fclose(servFile);
+
+						fclose(pfiletemp);
+
+						remove(SERVICES);
+						rename("temp.dat", SERVICES);
+						break;
+					case 4:
+						fopen_s(&pfiletemp, "temp.dat", "w+b");
+
+						fopen_s(&staffFile, STAFF, "rb");
+						while (fread(&empl, sizeof(employee), 1, staffFile)) {
+							for (size_t i = 0; i < EMPL_POS_LENGHT; i++)
+								if (empl.position[i] > entryNumb) {
+									empl.position[i]--;
+								}
+							fwrite(&empl, sizeof(employee), 1, pfiletemp);
+						}
+						fclose(staffFile);
+
+						fclose(pfiletemp);
+
+						remove(STAFF);
+						rename("temp.dat", STAFF);
+
+						fopen_s(&pfiletemp, "temp.dat", "w+b");
+
+						fopen_s(&servFile, SERVICES, "rb");
+						while (fread(&serv, sizeof(service), 1, servFile)) {
+							if (serv.category > entryNumb) {
+								serv.category--;
+							}
+							fwrite(&serv, sizeof(service), 1, pfiletemp);
+						}
+						fclose(servFile);
+
+						fclose(pfiletemp);
+
+						remove(SERVICES);
+						rename("temp.dat", SERVICES);
+						break;
+					default: return;
+					}
 			}
 			else {
 				switch (dataType) {
 				case 2:
 					cout << "\n\tУдалить данную запись невозможно, т.к. она используется в следующих заказах:";
-					output(1, entryNumb);
+					output(1, entryNumb, dataType);
 					break;
 				case 3:
 					cout << "\n\tУдалить данную запись невозможно, т.к. она используется в следующих услугах:";
-					output(2, entryNumb);
+					output(2, entryNumb, dataType);
 					break;
 				case 4:
-					cout << "\n\tУдалить данную запись невозможно, т.к. она используется в следующих услугах:";
-					output(2, entryNumb);
-					cout << "\n\tУдалить данную запись невозможно, т.к. она используется у следующих сотрудников:";
-					output(3, entryNumb);
+					if (flag[0]) {
+						cout << "\n\tУдалить данную запись невозможно, т.к. она используется в следующих услугах:";
+						output(2, entryNumb, dataType);
+					}
+					if (flag[1]) {
+						cout << "\n\tУдалить данную запись невозможно, т.к. она используется у следующих сотрудников:";
+						output(3, entryNumb, dataType);
+					}
 					break;
 				default:
 					cout << "\n\tУдалить данную запись невозможно.";
@@ -1360,5 +1559,431 @@ void editAndRemoveVal(size_t dataType, size_t navPos) {
 			char inputRepeat = inputCurrentVal(&checkVal, &titleVal)[0];
 			if (inputRepeat == 'Д' || inputRepeat == 'д') break;
 		} while (true);
+	}
+}
+
+void sorting(size_t dataType) {
+	string titleVal;
+	string checkVal;
+
+	size_t sortNav;
+	bool sortVariable;
+
+	switch (dataType) {
+	case 1: {
+		order ord;
+
+		cout << "\n\tВыберите значение, по которому будет производиться сортировка:"
+			<< "\n\t1 - Номер заказа."
+			<< "\n\t2 - ФИО заказчика."
+			<< "\n\t3 - Дата заказа."
+			<< "\n\t4 - Услуги."
+			<< "\n\t5 - Стоимость."
+			<< "\n\t6 - Дата исполнения.";
+
+		titleVal = "\n\tВаш вариант: ";
+		checkVal = createPatternForMultipleNumbers(1, 1, 6, true);
+		sortNav = stoi(inputCurrentVal(&checkVal, &titleVal));
+
+		cout << "\n\tВыберите как будет производиться сортировка:"
+			<< "\n\t1 - По возрастанию."
+			<< "\n\t2 - По убыванию.";
+
+		titleVal = "\n\tВаш вариант: ";
+		checkVal = createPatternForMultipleNumbers(1, 1, 2, true);
+		sortVariable = (bool)(stoi(inputCurrentVal(&checkVal, &titleVal)) - 1);
+
+		order temp;
+		size_t n;
+		bool flag;
+		bool sortValCurrent;
+
+		fopen_s(&ordFile, ORDERS, "rb+");
+		do {
+			flag = false;
+			n = 1;
+
+			fread(&ord, sizeof(order), 1, ordFile);
+			while (fread(&temp, sizeof(order), 1, ordFile) == 1) {
+				n++;
+
+				switch (sortNav) {
+				case 1: {
+					sortVariable
+						? sortValCurrent = ord.ID < temp.ID
+						: sortValCurrent = ord.ID > temp.ID;
+					break;
+				}
+				case 2: {
+					sortVariable
+						? sortValCurrent = strcmp(ord.fullName, temp.fullName) < 0
+						: sortValCurrent = strcmp(ord.fullName, temp.fullName) > 0;
+					break;
+				}
+				case 3: {
+					struct tm t_data;
+
+					time_t ord_s_data;
+					ord_s_data = time(NULL);
+					localtime_s(&t_data, &ord_s_data);
+					t_data.tm_mday = (int)ord.dateOfOrder[0];
+					t_data.tm_mon = (int)ord.dateOfOrder[1] - 1;
+					t_data.tm_year = (int)ord.dateOfOrder[2] - 1900;
+					ord_s_data = mktime(&t_data);
+
+					time_t temp_s_data;
+					temp_s_data = time(NULL);
+					localtime_s(&t_data, &temp_s_data);
+					t_data.tm_mday = (int)temp.dateOfOrder[0];
+					t_data.tm_mon = (int)temp.dateOfOrder[1] - 1;
+					t_data.tm_year = (int)temp.dateOfOrder[2] - 1900;
+					temp_s_data = mktime(&t_data);
+
+					sortVariable
+						? sortValCurrent = ord_s_data < temp_s_data
+						: sortValCurrent = ord_s_data > temp_s_data;
+					break;
+				}
+				case 4: {
+					size_t ordServLenght = 0;
+					size_t tempServLenght = 0;
+					for (size_t i = 0; i < ORDER_SERV_LENGHT; i++) {
+						if (!ord.servNumbers[i] && !temp.servNumbers[i]) break;
+						if (ord.servNumbers[i]) ordServLenght++;
+						if (temp.servNumbers[i]) tempServLenght++;
+					}
+
+					sortVariable
+						? sortValCurrent = ordServLenght < tempServLenght
+						: sortValCurrent = ordServLenght > tempServLenght;
+					break;
+				}
+				case 5: {
+					service serv;
+					size_t ordPrice = 0;
+					size_t tempPrice = 0;
+					for (size_t i = 0; i < ORDER_SERV_LENGHT; i++) {
+						if (!ord.servNumbers[i] && !temp.servNumbers[i]) break;
+						fopen_s(&servFile, SERVICES, "rb");
+						while (fread(&serv, sizeof(service), 1, servFile)) {
+							if (ord.servNumbers[i] == serv.ID) ordPrice += serv.price;
+							if (temp.servNumbers[i] == serv.ID) tempPrice += serv.price;
+						}
+						fclose(servFile);
+					}
+
+					sortVariable
+						? sortValCurrent = ordPrice < tempPrice
+						: sortValCurrent = ordPrice > tempPrice;
+					break;
+				}
+				case 6: {
+					service serv;
+					struct tm t_data;
+
+					time_t ord_s_data;
+					time_t temp_s_data;
+
+					ord_s_data = time(NULL);
+					temp_s_data = time(NULL);
+
+					localtime_s(&t_data, &ord_s_data);
+					t_data.tm_mday = (int)ord.dateOfOrder[0];
+					t_data.tm_mon = (int)ord.dateOfOrder[1] - 1;
+					t_data.tm_year = (int)ord.dateOfOrder[2] - 1900;
+					ord_s_data = mktime(&t_data);
+
+					localtime_s(&t_data, &temp_s_data);
+					t_data.tm_mday = (int)temp.dateOfOrder[0];
+					t_data.tm_mon = (int)temp.dateOfOrder[1] - 1;
+					t_data.tm_year = (int)temp.dateOfOrder[2] - 1900;
+					temp_s_data = mktime(&t_data);
+
+					for (size_t i = 0; i < ORDER_SERV_LENGHT; i++) {
+						if (!ord.servNumbers[i] && !temp.servNumbers[i]) break;
+
+						fopen_s(&servFile, SERVICES, "rb");
+						while (fread(&serv, sizeof(service), 1, servFile)) {
+							if (ord.servNumbers[i] && ord.servNumbers[i] == serv.ID)
+								ord_s_data += serv.term * 86400; // 1 day = 86 400 second
+
+							if (temp.servNumbers[i] && temp.servNumbers[i] == serv.ID)
+								temp_s_data += serv.term * 86400; // 1 day = 86 400 second
+						}
+						fclose(servFile);
+					}
+
+					sortVariable
+						? sortValCurrent = ord_s_data < temp_s_data
+						: sortValCurrent = ord_s_data > temp_s_data;
+					break;
+				}
+				default: sortValCurrent = false;
+				}
+
+				if (sortValCurrent) {
+					fseek(ordFile, (n - 2) * sizeof(order), SEEK_SET);
+					fwrite(&temp, sizeof(order), 1, ordFile);
+					fseek(ordFile, (n - 1) * sizeof(order), SEEK_SET);
+					fwrite(&ord, sizeof(order), 1, ordFile);
+					flag = true;
+				}
+				else ord = temp;
+				fseek(ordFile, n * sizeof(order), SEEK_SET);
+			}
+			rewind(ordFile);
+		} while (flag);
+
+		fclose(ordFile);
+
+		break;
+	}
+	case 2: {
+		service serv;
+
+		cout << "\n\tВыберите значение, по которому будет производиться сортировка:"
+			<< "\n\t1 - Номер услуги."
+			<< "\n\t2 - ФИО сотрудника."
+			<< "\n\t3 - Категории."
+			<< "\n\t4 - Стоимость."
+			<< "\n\t5 - Срок.";
+
+		titleVal = "\n\tВаш вариант: ";
+		checkVal = createPatternForMultipleNumbers(1, 1, 5, true);
+		sortNav = stoi(inputCurrentVal(&checkVal, &titleVal));
+
+		cout << "\n\tВыберите как будет производиться сортировка:"
+			<< "\n\t1 - По возрастанию."
+			<< "\n\t2 - По убыванию.";
+
+		titleVal = "\n\tВаш вариант: ";
+		checkVal = createPatternForMultipleNumbers(1, 1, 2, true);
+		sortVariable = (bool)(stoi(inputCurrentVal(&checkVal, &titleVal)) - 1);
+
+		service temp;
+		size_t n;
+		bool flag;
+		bool sortValCurrent;
+
+		fopen_s(&servFile, SERVICES, "rb+");
+		do {
+			flag = false;
+			n = 1;
+
+			fread(&serv, sizeof(service), 1, servFile);
+			while (fread(&temp, sizeof(service), 1, servFile) == 1) {
+				n++;
+
+				switch (sortNav) {
+				case 1: {
+					sortVariable
+						? sortValCurrent = serv.ID < temp.ID
+						: sortValCurrent = serv.ID > temp.ID;
+					break;
+				}
+				case 2: {
+					employee empl;
+
+					string servEmplName;
+					string tempEmplName;
+
+					fopen_s(&staffFile, STAFF, "rb");
+					while (fread(&empl, sizeof(employee), 1, staffFile)) {
+						if (servEmplName.size() && tempEmplName.size()) break;
+						if (serv.employee == empl.ID) servEmplName = empl.fullName;
+						if (temp.employee == empl.ID) tempEmplName = empl.fullName;
+					}
+					fclose(staffFile);
+
+					sortVariable
+						? sortValCurrent = servEmplName < tempEmplName
+						: sortValCurrent = servEmplName > tempEmplName;
+					break;
+				}
+				case 3: {
+					sortVariable
+						? sortValCurrent = serv.category < temp.category
+						: sortValCurrent = serv.category > temp.category;
+					break;
+				}
+				case 4: {
+					sortVariable
+						? sortValCurrent = serv.price < temp.price
+						: sortValCurrent = serv.price > temp.price;
+					break;
+				}
+				case 5: {
+					sortVariable
+						? sortValCurrent = serv.term < temp.term
+						: sortValCurrent = serv.term > temp.term;
+					break;
+				}
+				default: sortValCurrent = false;
+				}
+
+				if (sortValCurrent) {
+					fseek(servFile, (n - 2) * sizeof(service), SEEK_SET);
+					fwrite(&temp, sizeof(service), 1, servFile);
+					fseek(servFile, (n - 1) * sizeof(service), SEEK_SET);
+					fwrite(&serv, sizeof(service), 1, servFile);
+					flag = true;
+				}
+				else serv = temp;
+				fseek(servFile, n * sizeof(service), SEEK_SET);
+			}
+			rewind(servFile);
+		} while (flag);
+
+		fclose(servFile);
+
+		break;
+	}
+	case 3: {
+		employee empl;
+
+		cout << "\n\tВыберите значение, по которому будет производиться сортировка:"
+			<< "\n\t1 - Номер сотрудника."
+			<< "\n\t2 - ФИО сотрудника."
+			<< "\n\t3 - Квалифицированность.";
+
+		titleVal = "\n\tВаш вариант: ";
+		checkVal = createPatternForMultipleNumbers(1, 1, 3, true);
+		sortNav = stoi(inputCurrentVal(&checkVal, &titleVal));
+
+		cout << "\n\tВыберите как будет производиться сортировка:"
+			<< "\n\t1 - По возрастанию."
+			<< "\n\t2 - По убыванию.";
+
+		titleVal = "\n\tВаш вариант: ";
+		checkVal = createPatternForMultipleNumbers(1, 1, 2, true);
+		sortVariable = (bool)(stoi(inputCurrentVal(&checkVal, &titleVal)) - 1);
+
+		employee temp;
+		size_t n;
+		bool flag;
+		bool sortValCurrent;
+
+		fopen_s(&staffFile, STAFF, "rb+");
+		do {
+			flag = false;
+			n = 1;
+
+			fread(&empl, sizeof(employee), 1, staffFile);
+			while (fread(&temp, sizeof(employee), 1, staffFile) == 1) {
+				n++;
+
+				switch (sortNav) {
+				case 1: {
+					sortVariable
+						? sortValCurrent = empl.ID < temp.ID
+						: sortValCurrent = empl.ID > temp.ID;
+					break;
+				}
+				case 2: {
+					sortVariable
+						? sortValCurrent = strcmp(empl.fullName, temp.fullName) < 0
+						: sortValCurrent = strcmp(empl.fullName, temp.fullName) > 0;
+					break;
+				}
+				case 3: {
+					size_t emplPosLenght = 0;
+					size_t tempPosLenght = 0;
+					for (size_t i = 0; i < EMPL_POS_LENGHT; i++) {
+						if (!empl.position[i] && !temp.position[i]) break;
+						if (empl.position[i]) emplPosLenght++;
+						if (temp.position[i]) tempPosLenght++;
+					}
+
+					sortVariable
+						? sortValCurrent = emplPosLenght < tempPosLenght
+						: sortValCurrent = emplPosLenght > tempPosLenght;
+					break;
+				}
+				default: sortValCurrent = false;
+				}
+
+				if (sortValCurrent) {
+					fseek(staffFile, (n - 2) * sizeof(employee), SEEK_SET);
+					fwrite(&temp, sizeof(employee), 1, staffFile);
+					fseek(staffFile, (n - 1) * sizeof(employee), SEEK_SET);
+					fwrite(&empl, sizeof(employee), 1, staffFile);
+					flag = true;
+				}
+				else empl = temp;
+				fseek(staffFile, n * sizeof(employee), SEEK_SET);
+			}
+			rewind(staffFile);
+		} while (flag);
+
+		fclose(staffFile);
+
+		break;
+	}
+	case 4: {
+		position pos;
+
+		cout << "\n\tВыберите значение, по которому будет производиться сортировка:"
+			<< "\n\t1 - Номер квалификации."
+			<< "\n\t2 - Название квалификации.";
+
+		titleVal = "\n\tВаш вариант: ";
+		checkVal = createPatternForMultipleNumbers(1, 1, 2, true);
+		sortNav = stoi(inputCurrentVal(&checkVal, &titleVal));
+
+		cout << "\n\tВыберите как будет производиться сортировка:"
+			<< "\n\t1 - По возрастанию."
+			<< "\n\t2 - По убыванию.";
+
+		titleVal = "\n\tВаш вариант: ";
+		checkVal = createPatternForMultipleNumbers(1, 1, 2, true);
+		sortVariable = (bool)(stoi(inputCurrentVal(&checkVal, &titleVal)) - 1);
+
+		position temp;
+		size_t n;
+		bool flag;
+		bool sortValCurrent;
+
+		fopen_s(&posFile, POSITIONS, "rb+");
+		do {
+			flag = false;
+			n = 1;
+
+			fread(&pos, sizeof(position), 1, posFile);
+			while (fread(&temp, sizeof(position), 1, posFile) == 1) {
+				n++;
+
+				switch (sortNav) {
+				case 1: {
+					sortVariable
+						? sortValCurrent = pos.ID < temp.ID
+						: sortValCurrent = pos.ID > temp.ID;
+					break;
+				}
+				case 2: {
+					sortVariable
+						? sortValCurrent = strcmp(pos.occupation, temp.occupation) < 0
+						: sortValCurrent = strcmp(pos.occupation, temp.occupation) > 0;
+					break;
+				}
+				default: sortValCurrent = false;
+				}
+
+				if (sortValCurrent) {
+					fseek(posFile, (n - 2) * sizeof(position), SEEK_SET);
+					fwrite(&temp, sizeof(position), 1, posFile);
+					fseek(posFile, (n - 1) * sizeof(position), SEEK_SET);
+					fwrite(&pos, sizeof(position), 1, posFile);
+					flag = true;
+				}
+				else pos = temp;
+				fseek(posFile, n * sizeof(position), SEEK_SET);
+			}
+			rewind(posFile);
+		} while (flag);
+
+		fclose(posFile);
+
+		break;
+	}
 	}
 }
