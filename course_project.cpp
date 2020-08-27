@@ -254,21 +254,40 @@ order orderInputLayout(size_t ID) {
 	}
 	fclose(servFile);
 
-	titleVal = "\n\n\tПеречислите через запятую номера услуг (не более " + to_string(ORDER_SERV_LENGHT) + "): ";
+	titleVal = "\n\tПеречислите через запятую номера услуг (не более " + to_string(ORDER_SERV_LENGHT) + "): ";
 	checkVal = createPatternForMultipleNumbers(ORDER_SERV_LENGHT, 1, itemsLenght, false);
 	str = inputCurrentVal(&checkVal, &titleVal);
-	if (true) {
-		size_t j = 0;
-		for (size_t i = 0, n = 0; i <= str.size(); i++)
+
+	size_t ordServLenght = 0;
+	for (size_t i = 0, j = 0, n = 0; j < ORDER_SERV_LENGHT; i++)
+		if (i <= str.size())
 			if (str.substr(i, 1) == "," || i == str.size()) {
 				ord.servNumbers[j] = servIDs[stoi(str.substr(i - n, n)) - 1];
 				n = 0;
 				j++;
+				ordServLenght++;
 			}
 			else n++;
+		else ord.servNumbers[j++] = 0;
 
-		for (j; j < ORDER_SERV_LENGHT; j++) ord.servNumbers[j] = 0;
-	}
+	for (size_t i = 0; i < ORDER_SERV_LENGHT; i++)
+		for (size_t j = i + 1; j < ORDER_SERV_LENGHT; j++) {
+			if (ord.servNumbers[i] == ord.servNumbers[j] && ord.servNumbers[j])
+				ord.servNumbers[j] = 0;
+
+			else if (ord.servNumbers[i] > ord.servNumbers[j] && ord.servNumbers[j]) {
+				size_t temp = ord.servNumbers[i];
+				ord.servNumbers[i] = ord.servNumbers[j];
+				ord.servNumbers[j] = temp;
+			}
+
+			else if (!ord.servNumbers[j] && j < ORDER_SERV_LENGHT - 1)
+				ord.servNumbers[j] = ord.servNumbers[j + 1];
+		}
+			
+
+	for (size_t i = 0; i < ORDER_SERV_LENGHT; i++)
+		cout << endl << ord.servNumbers[i];
 
 	return ord;
 }
@@ -288,6 +307,7 @@ service servInputLayout(size_t ID) {
 
 	// Category
 	vector <size_t> posIDs;
+	vector <string> posOccupations;
 	output(4, 0, 4);
 
 	fopen_s(&posFile, POSITIONS, "rb");
@@ -299,7 +319,7 @@ service servInputLayout(size_t ID) {
 	fclose(posFile);
 
 	titleVal = "\n\tВыберите категорию: ";
-	checkVal = createPatternForMultipleNumbers(1, 1, posLenght, true);;
+	checkVal = createPatternForMultipleNumbers(1, 1, posLenght, true);
 	serv.category = posIDs[stoi(inputCurrentVal(&checkVal, &titleVal)) - 1];
 
 	// Title
@@ -309,23 +329,23 @@ service servInputLayout(size_t ID) {
 
 	// Employee
 	vector <size_t> staffIDs;
-	output(3, 0, 3);
+	output(3, serv.category, 2);
 
-	checkVal.clear();
 	fopen_s(&staffFile, STAFF, "rb");
 	size_t staffLenght = 0;
 	while (fread(&empl, sizeof(employee), 1, staffFile)) {
-		for (size_t i = 0; i < staffLenght; i++)
+		for (size_t i = 0; i < EMPL_POS_LENGHT; i++) {
+			if (!empl.position[i]) break;
 			if (empl.position[i] == serv.category) {
-				checkVal.append("|(" + to_string(empl.ID) + ")");
+				staffLenght++;
+				staffIDs.push_back(empl.ID);
 			}
-		staffLenght++;
-		staffIDs.push_back(empl.ID);
+		}
 	}
 	fclose(staffFile);
-	checkVal.erase(checkVal.begin());
 
-	titleVal = "\n\tВыберите специалиста, который имеет выбранную квалификацию: ";
+	checkVal = createPatternForMultipleNumbers(1, 1, staffLenght, true);
+	titleVal = "\n\tВыберите специалиста, который имеет выбранную вами квалификацию: ";
 	serv.employee = staffIDs[stoi(inputCurrentVal(&checkVal, &titleVal)) - 1];
 
 	// Price
@@ -377,21 +397,34 @@ employee emplInputLayout(size_t ID) {
 	}
 	fclose(posFile);
 
-	titleVal = "\n\tПеречислите через запятую номера квалификаций: ";
+	titleVal = "\n\tПеречислите через запятую номера квалификаций (не более " + to_string(EMPL_POS_LENGHT) + "): ";
 	checkVal = createPatternForMultipleNumbers(EMPL_POS_LENGHT, 1, posLenght, false);
 	str = inputCurrentVal(&checkVal, &titleVal);
 
-	for (size_t i = 0; i < EMPL_POS_LENGHT; i++) {
-		empl.position[i] = 0;
-	}
+	for (size_t i = 0, j = 0, n = 0; j < EMPL_POS_LENGHT; i++)
+		if (i <= str.size())
+			if (str.substr(i, 1) == "," || i == str.size()) {
+				empl.position[j] = posIDs[stoi(str.substr(i - n, n)) - 1];
+				n = 0;
+				j++;
+			}
+			else n++;
+		else empl.position[j++] = 0;
 
-	for (size_t i = 0, j = 0, n = 0; i <= str.size(); i++)
-		if (str.substr(i, 1) == "," || i == str.size()) {
-			empl.position[j] = posIDs[stoi(str.substr(i - n, n)) - 1];
-			n = 0;
-			j++;
+	for (size_t i = 0; i < EMPL_POS_LENGHT; i++)
+		for (size_t j = i + 1; j < EMPL_POS_LENGHT; j++) {
+			if (empl.position[i] == empl.position[j] && empl.position[j])
+				empl.position[j] = 0;
+
+			else if (empl.position[i] > empl.position[j] && empl.position[j]) {
+				size_t temp = empl.position[i];
+				empl.position[i] = empl.position[j];
+				empl.position[j] = temp;
+			}
+
+			else if (!empl.position[j] && j < EMPL_POS_LENGHT - 1)
+				empl.position[j] = empl.position[j + 1];
 		}
-		else n++;
 
 	return empl;
 }
@@ -962,6 +995,14 @@ void output(size_t dataType, size_t outputType, size_t navPos) {
 				bool flag = false;
 				if (outputType) {
 					switch (navPos) {
+					case 2:
+						for (size_t j = 0; j < EMPL_POS_LENGHT; j++) {
+							if (outputType == empl.position[j]) {
+								flag = true;
+								break;
+							}
+						}
+						break;
 					case 4:
 						for (size_t j = 0; j < EMPL_POS_LENGHT; j++) {
 							if (outputType == empl.position[j]) {
@@ -1308,9 +1349,11 @@ void editOrRemove(size_t dataType, size_t navPos) {
 			default: titleVal = "\n\tВведите номер записи (0 для отмены): ";
 			}
 			checkVal = createPatternForMultipleNumbers(1, 0, lenght, true);
-			entryNumb = itemsIDs[stoi(inputCurrentVal(&checkVal, &titleVal)) - 1];
+			entryNumb = stoi(inputCurrentVal(&checkVal, &titleVal));
 
-			if (!entryNumb) break;
+			if (!entryNumb) return;
+
+			entryNumb = itemsIDs[entryNumb - 1];
 
 			bool flag[2] = { false, false };
 			if (navPos == 4) {
